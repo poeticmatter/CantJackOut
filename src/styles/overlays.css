@@ -1,0 +1,284 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: start center;
+  padding: clamp(12px, 4vh, 48px) 12px;
+  overflow-y: auto;
+  background: rgba(8, 6, 20, 0.72);
+  backdrop-filter: blur(3px);
+  animation: fade-in 200ms ease-out;
+}
+.overlay-panel {
+  width: min(1080px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: clamp(18px, 3vw, 32px);
+  background: var(--smoke-solid);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.overlay-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.overlay-head h2 {
+  font-size: var(--step-3);
+  margin-right: auto;
+}
+
+/* Market ----------------------------------------------------------------------- */
+.market-cash {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step-1);
+  color: var(--amber);
+}
+.market-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 28px;
+}
+.market-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.market-section h3 {
+  font-size: var(--step-1);
+  color: var(--amber);
+}
+.market-hint {
+  color: var(--muted);
+  font-size: var(--step--1);
+  max-width: 60ch;
+}
+.offer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-small);
+  background: rgba(255, 255, 255, 0.02);
+}
+.offer.is-owned {
+  opacity: 0.65;
+}
+.offer-text h4 {
+  font-size: var(--step-0);
+}
+.offer-text p {
+  font-size: var(--step--1);
+  color: var(--muted);
+  max-width: 52ch;
+}
+.offer-done {
+  font-family: var(--font-display);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.btn-buy {
+  white-space: nowrap;
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(255, 182, 72, 0.08);
+}
+
+.lab-dice {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+}
+.lab-die {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+.lab-die small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+.lab-die.is-selected {
+  border-color: var(--amber);
+  background: rgba(255, 182, 72, 0.07);
+}
+.lab-bench {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius-small);
+  background: rgba(255, 255, 255, 0.03);
+}
+.lab-bench .die-net {
+  grid-template-columns: repeat(6, 40px);
+  gap: 6px;
+}
+.lab-bench .net-face {
+  width: 40px;
+  height: 40px;
+}
+.lab-bench .net-glyph {
+  width: 22px;
+  height: 22px;
+}
+.face-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.btn-flash {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--step--1);
+}
+.btn-flash small {
+  margin-left: auto;
+  color: var(--amber);
+}
+.flash-glyph {
+  width: 16px;
+  height: 16px;
+}
+
+/* Help ------------------------------------------------------------------------- */
+.help {
+  width: min(720px, 100%);
+}
+.help-lede {
+  font-size: var(--step-1);
+  max-width: 55ch;
+}
+.help-dice {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.help-face {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--tone) 8%, transparent);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.help-glyph {
+  width: 22px;
+  height: 22px;
+}
+.help-caption {
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.help-rules {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 10px;
+  max-width: 68ch;
+}
+.help-rules li::marker {
+  font-family: var(--font-display);
+  color: var(--amber);
+}
+.help .btn-primary {
+  align-self: flex-start;
+}
+
+/* Dawn and endings -------------------------------------------------------------- */
+.dawn-screen,
+.ending-screen {
+  position: relative;
+  min-height: calc(100vh - 80px);
+  display: grid;
+  place-items: center;
+  padding: var(--gutter);
+  overflow: hidden;
+}
+.dawn-screen {
+  background: linear-gradient(180deg, rgba(13, 10, 31, 0.6) 0%, rgba(74, 36, 80, 0.75) 55%, rgba(214, 110, 120, 0.7) 100%);
+}
+.dawn-sun {
+  position: absolute;
+  left: 50%;
+  bottom: -38vh;
+  width: 70vh;
+  height: 70vh;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 196, 120, 0.85), rgba(255, 140, 120, 0.25) 55%, transparent 70%);
+  filter: blur(8px);
+  animation: sunrise 2.4s ease-out;
+}
+.ending-screen.is-won {
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 182, 72, 0.35), transparent 65%);
+}
+.ending-screen.is-lost {
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 61, 110, 0.18), transparent 70%);
+}
+.dawn-card {
+  position: relative;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+  background: var(--smoke);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+}
+.dawn-card h1 {
+  font-size: var(--step-5);
+  line-height: 1;
+}
+.dawn-time {
+  font-family: var(--font-display);
+  color: #ffc2d0;
+}
+.dawn-message {
+  font-size: var(--step-1);
+  max-width: 40ch;
+}
+.dawn-card .btn {
+  align-self: flex-start;
+  font-size: var(--step-1);
+}
+
+@keyframes sunrise {
+  from {
+    bottom: -60vh;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .market-columns {
+    grid-template-columns: 1fr;
+  }
+  .lab-bench .die-net {
+    grid-template-columns: repeat(3, 40px);
+  }
+}

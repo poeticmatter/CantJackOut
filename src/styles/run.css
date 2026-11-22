@@ -1,0 +1,284 @@
+/* The run screen is the game's one loud moment: towers of data and real dice. */
+.run-screen {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: var(--gutter);
+  background: radial-gradient(ellipse at 50% 110%, rgba(90, 40, 140, 0.35), transparent 60%), rgba(9, 7, 22, 0.72);
+  overflow: hidden;
+}
+.run-screen::before {
+  /* Faint scanlines over the whole session, like a cheap rented display. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+  z-index: 0;
+}
+.run-screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+.run-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+}
+.run-corp {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.run-node {
+  font-size: var(--step-4);
+  text-transform: capitalize;
+  line-height: 1;
+}
+.run-mods {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+.run-clock {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.run-clock strong {
+  font-size: var(--step-3);
+  color: var(--amber);
+  line-height: 1;
+  text-shadow: 0 0 16px rgba(255, 182, 72, 0.5);
+}
+
+.run-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--gutter);
+  min-height: 0;
+}
+
+/* Console ---------------------------------------------------------------------- */
+.console {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  background: var(--smoke);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+}
+.console-narration {
+  min-height: 4.4em;
+  color: var(--text);
+}
+.odds {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+.odds-label {
+  color: var(--muted);
+}
+.odds-value {
+  font-size: var(--step-4);
+  line-height: 1;
+}
+.odds-meter {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.odds-fill {
+  height: 100%;
+  background: currentColor;
+  transition: width 300ms;
+}
+.odds.is-safe {
+  color: var(--green);
+}
+.odds.is-uneasy {
+  color: var(--amber);
+}
+.odds.is-dangerous {
+  color: var(--danger);
+}
+.odds .odds-label {
+  color: var(--muted);
+}
+.console-actions {
+  display: grid;
+  gap: 10px;
+}
+.console-actions .btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  text-align: left;
+}
+.console-actions .btn small {
+  font-family: var(--font-body);
+  font-weight: 500;
+  opacity: 0.75;
+}
+.btn-roll {
+  font-size: var(--step-2);
+  padding: 0.55em 0.8em;
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #1a1006;
+  box-shadow: 0 0 24px rgba(255, 182, 72, 0.3);
+}
+.btn-roll:hover:not(:disabled) {
+  background: #ffc76e;
+}
+.btn-jack {
+  font-size: var(--step-1);
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(57, 240, 160, 0.06);
+}
+.btn-program {
+  border-color: #b48cff;
+  color: #dccaff;
+  background: rgba(180, 140, 255, 0.08);
+}
+.console-keys {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+/* Run endings ---------------------------------------------------------------------- */
+.run-screen.is-glitching {
+  animation: glitch-shake 700ms steps(2, end);
+}
+.run-screen.is-glitching::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 61, 110, 0.18) 0 2px, transparent 2px 9px);
+  mix-blend-mode: screen;
+  animation: glitch-bars 700ms steps(6, end);
+}
+.run-screen.is-downloaded .tower-shaft {
+  animation: download-flash 900ms ease-out;
+}
+
+@keyframes glitch-shake {
+  0%, 100% { transform: none; }
+  15% { transform: translate(-8px, 3px) skewX(2deg); }
+  30% { transform: translate(6px, -4px); }
+  45% { transform: translate(-4px, 2px) skewX(-3deg); }
+  60% { transform: translate(5px, 1px); }
+  80% { transform: translate(-2px, -2px); }
+}
+@keyframes glitch-bars {
+  0% { clip-path: inset(10% 0 70% 0); }
+  20% { clip-path: inset(50% 0 20% 0); }
+  40% { clip-path: inset(0 0 85% 0); }
+  60% { clip-path: inset(70% 0 5% 0); }
+  80% { clip-path: inset(30% 0 40% 0); }
+  100% { clip-path: inset(0 0 0 0); opacity: 0; }
+}
+@keyframes download-flash {
+  30% {
+    background: color-mix(in srgb, var(--tone) 40%, transparent);
+    box-shadow: 0 0 60px var(--tone);
+  }
+}
+
+.run-result-slot:empty {
+  display: none;
+}
+.run-result-slot {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 6, 20, 0.6);
+  backdrop-filter: blur(2px);
+  animation: fade-in 300ms ease-out;
+}
+.run-result {
+  width: min(460px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  background: var(--smoke-solid);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.run-result-title {
+  position: relative;
+  font-size: var(--step-4);
+  font-weight: 700;
+}
+.ending-downloaded .run-result-title {
+  color: var(--amber);
+  text-shadow: 0 0 24px rgba(255, 182, 72, 0.6);
+}
+.ending-jackedOut .run-result-title {
+  color: var(--green);
+}
+.ending-flatlined .run-result-title {
+  color: var(--danger);
+  text-shadow: -2px 0 rgba(63, 167, 255, 0.7), 2px 0 rgba(255, 61, 110, 0.7);
+}
+.ending-flatlined {
+  border-color: var(--danger);
+}
+.run-result-detail {
+  color: var(--text);
+}
+.run-result-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+.run-result-facts dt {
+  color: var(--muted);
+}
+.run-result-facts dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-align: right;
+}
+.run-result-dawn {
+  color: #ff9ab8;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .run-stage {
+    grid-template-columns: 1fr;
+  }
+  .towers {
+    min-height: 260px;
+  }
+  .run-node {
+    font-size: var(--step-3);
+  }
+}

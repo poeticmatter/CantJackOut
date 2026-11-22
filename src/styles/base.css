@@ -1,0 +1,230 @@
+/* Sodium-vapor night: violet ink, streetlight amber for money/time/actions,
+   and three neon file colors that each carry a shape. */
+:root {
+  --ink: #0d0a1f;
+  --smoke: rgba(27, 22, 54, 0.82);
+  --smoke-solid: #1b1636;
+  --smoke-raised: #251e48;
+  --edge: #3b3163;
+  --edge-bright: #5a4c8f;
+  --text: #ece7ff;
+  --muted: #a198cc;
+  --amber: #ffb648;
+  --amber-deep: #d9861c;
+  --danger: #ff4d5e;
+  --red: #ff3d6e;
+  --blue: #3fa7ff;
+  --green: #39f0a0;
+  --wild: #f4eeff;
+
+  --font-display: 'Chakra Petch', 'Bahnschrift', 'Segoe UI', sans-serif;
+  --font-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+
+  /* Major-third scale from a 16px base. */
+  --step--1: 0.8rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.563rem;
+  --step-3: 1.953rem;
+  --step-4: 2.441rem;
+  --step-5: 3.815rem;
+
+  --radius-small: 4px;
+  --radius: 10px;
+  --gutter: clamp(12px, 2vw, 24px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+#backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+strong {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.tone-red,
+.face-red {
+  --tone: var(--red);
+}
+.tone-blue,
+.face-blue {
+  --tone: var(--blue);
+}
+.tone-green,
+.face-green {
+  --tone: var(--green);
+}
+.face-wild {
+  --tone: var(--wild);
+}
+
+.glyph {
+  width: 1em;
+  height: 1em;
+}
+.glyph-red {
+  fill: var(--red);
+}
+.glyph-blue {
+  fill: var(--blue);
+}
+.glyph-green {
+  fill: var(--green);
+}
+.glyph-wild {
+  fill: var(--wild);
+  filter: drop-shadow(0 0 3px #ff7ad9) drop-shadow(0 0 5px #7ad7ff);
+}
+
+/* Buttons ------------------------------------------------------------------ */
+.btn {
+  appearance: none;
+  border: 1px solid var(--edge-bright);
+  background: var(--smoke-raised);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step-0);
+  padding: 0.6em 1.1em;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms, transform 80ms;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--amber);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.btn-primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #1a1006;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #ffc76e;
+}
+.btn-quiet {
+  background: transparent;
+  border-color: var(--edge);
+  color: var(--muted);
+}
+.btn-quiet:hover:not(:disabled) {
+  color: var(--text);
+}
+.btn-danger {
+  background: rgba(255, 77, 94, 0.14);
+  border-color: var(--danger);
+  color: #ffd5da;
+}
+.btn-small {
+  font-size: var(--step--1);
+  padding: 0.35em 0.8em;
+}
+
+/* Chips name server security; color matches the threat. */
+.chip {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.chip-blackIce {
+  color: #ff8fa3;
+  background: rgba(255, 61, 110, 0.12);
+}
+.chip-tracer {
+  color: var(--amber);
+  background: rgba(255, 182, 72, 0.1);
+}
+
+/* Toasts ------------------------------------------------------------------- */
+#toasts {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--smoke-solid);
+  border: 1px solid var(--danger);
+  padding: 0.6em 1em;
+  border-radius: var(--radius-small);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  transition: opacity 400ms, transform 400ms;
+}
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

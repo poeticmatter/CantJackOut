@@ -1,0 +1,115 @@
+/* Towers ----------------------------------------------------------------------- */
+.towers {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: clamp(24px, 6vw, 80px);
+  min-height: 340px;
+}
+.tower {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  width: clamp(90px, 13vw, 150px);
+}
+.tower-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.tower-glyph {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px var(--tone));
+}
+.tower-shaft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), color-mix(in srgb, var(--tone) 7%, transparent));
+}
+.tower-shaft.is-dense {
+  gap: 1px;
+}
+.cell {
+  flex: 1 1 0;
+  min-height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.is-dense .cell {
+  border-radius: 1px;
+  border-width: 0;
+}
+.cell.is-banked {
+  background: var(--tone);
+  border-color: var(--tone);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tone) 60%, transparent);
+}
+.cell.is-buffered {
+  background: color-mix(in srgb, var(--tone) 35%, transparent);
+  border-color: var(--tone);
+  animation: unbanked-pulse 1.4s ease-in-out infinite;
+}
+.cell.is-new {
+  animation: cell-arrive 420ms cubic-bezier(0.2, 0.9, 0.3, 1.3) backwards;
+  animation-delay: var(--cell-delay, 0ms);
+}
+.cell.is-buffered.is-new {
+  animation: cell-arrive 420ms cubic-bezier(0.2, 0.9, 0.3, 1.3) backwards, unbanked-pulse 1.4s ease-in-out 420ms infinite;
+  animation-delay: var(--cell-delay, 0ms), calc(var(--cell-delay, 0ms) + 420ms);
+}
+.cell.is-lost {
+  animation: cell-lost 700ms ease-out;
+}
+.tower.is-complete .tower-shaft {
+  border-color: var(--tone);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--tone) 40%, transparent), inset 0 0 20px color-mix(in srgb, var(--tone) 25%, transparent);
+}
+.tower-count {
+  text-align: center;
+  font-family: var(--font-display);
+}
+.tower-count strong {
+  font-size: var(--step-2);
+}
+.tower-count span {
+  color: var(--muted);
+}
+.tower-stake {
+  display: block;
+  font-style: normal;
+  font-size: var(--step--1);
+  color: var(--tone);
+}
+
+@keyframes unbanked-pulse {
+  50% {
+    background: color-mix(in srgb, var(--tone) 60%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--tone) 50%, transparent);
+  }
+}
+@keyframes cell-arrive {
+  from {
+    transform: scaleX(1.6) translateY(-14px);
+    opacity: 0;
+    background: #fff;
+  }
+}
+@keyframes cell-lost {
+  from {
+    background: var(--danger);
+    box-shadow: 0 0 14px var(--danger);
+  }
+  to {
+    background: rgba(255, 255, 255, 0.035);
+  }
+}
+

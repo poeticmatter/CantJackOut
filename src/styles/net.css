@@ -1,0 +1,242 @@
+/* HUD ---------------------------------------------------------------------- */
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  padding: 14px var(--gutter);
+  background: linear-gradient(180deg, rgba(13, 10, 31, 0.95), rgba(13, 10, 31, 0.7));
+  border-bottom: 1px solid var(--edge);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+}
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 0.95;
+  font-family: var(--font-display);
+}
+.wordmark span {
+  font-size: var(--step--1);
+  color: var(--muted);
+  font-weight: 500;
+}
+.wordmark strong {
+  font-size: var(--step-2);
+  font-weight: 700;
+  color: var(--amber);
+  text-shadow: 0 0 18px rgba(255, 182, 72, 0.45);
+}
+.hud-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hud-label {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.hud-stat strong {
+  font-size: var(--step-1);
+}
+.is-money {
+  color: var(--amber);
+}
+.hud-stat.is-short strong {
+  color: var(--danger);
+}
+.strike-marks {
+  display: flex;
+  gap: 6px;
+  padding-top: 4px;
+}
+.strike {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--edge-bright);
+  transform: rotate(45deg);
+}
+.strike.is-struck {
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+}
+.hud-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-market {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(255, 182, 72, 0.08);
+}
+
+.night-bar {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.night-bar-end.is-dawn {
+  color: #ff9ab8;
+}
+.night-bar-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1c1540 0%, #2b1a4a 70%, #6a2f55 92%, #c4566e 100%);
+  border: 1px solid var(--edge);
+}
+.night-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 182, 72, 0.25), rgba(255, 182, 72, 0.7));
+}
+.night-bar-now {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  background: var(--amber);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px var(--amber);
+}
+.night-bar-now span {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--amber);
+  font-size: var(--step-0);
+  font-weight: 600;
+  padding-bottom: 2px;
+}
+
+/* Net screen layout ---------------------------------------------------------- */
+.net-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: var(--gutter);
+  padding: var(--gutter);
+  align-items: start;
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.server-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--smoke);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  backdrop-filter: blur(4px);
+  min-height: 280px;
+}
+.server-card.is-in-progress {
+  border-color: rgba(255, 182, 72, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 182, 72, 0.15);
+}
+.card-corp {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.card-node {
+  font-size: var(--step-1);
+  text-transform: capitalize;
+}
+.card-reward {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.card-reward strong {
+  font-size: var(--step-3);
+  color: var(--amber);
+  line-height: 1;
+}
+.card-reward span {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.card-architecture,
+.card-unknown {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-unknown {
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.card-static {
+  height: 44px;
+  border-radius: var(--radius-small);
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(160, 140, 255, 0.08) 0 2px, transparent 2px 7px);
+  border: 1px dashed var(--edge-bright);
+}
+.card-mods {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card-odds {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.card-jack {
+  width: 100%;
+}
+
+.file-bar {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+.file-bar-glyph {
+  width: 16px;
+  height: 16px;
+}
+.file-bar-track {
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  overflow: hidden;
+}
+.file-bar-fill {
+  height: 100%;
+  background: var(--tone);
+  box-shadow: 0 0 10px var(--tone);
+}
+.file-bar-count {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 980px) {
+  .net-screen {
+    grid-template-columns: 1fr;
+  }
+  .deck-panel {
+    position: static;
+  }
+}
