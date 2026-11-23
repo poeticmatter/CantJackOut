@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360">
+  <!-- Vesna: a silhouette in profile behind venetian blinds, lit cyan from the window on the right.
+       characters.css animates the classed parts: the blinds drift, the cybernetic eye flickers while she talks. -->
+  <defs>
+    <radialGradient id="vesna-pool" cx="0.72" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#5a3fae"/><stop offset="0.55" stop-color="#2a1d63"/><stop offset="1" stop-color="#0d0a1f"/>
+    </radialGradient>
+    <pattern id="vesna-blinds" width="300" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)">
+      <rect width="300" height="13" fill="#ffffff" opacity="0.07"/>
+    </pattern>
+    <filter id="vesna-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="300" height="360" fill="url(#vesna-pool)"/>
+  <rect class="portrait-blinds" x="-20" y="-30" width="340" height="420" fill="url(#vesna-blinds)"/>
+
+  <!-- Neck, coat and lapel -->
+  <path d="M150,196 L118,214 C116,240 112,258 106,280 L206,300 L201,262 C198,256 194,254 188,250 Z" fill="#07051a"/>
+  <path d="M18,360 C22,324 44,298 78,282 C100,272 122,266 142,262 L150,250 C164,260 182,266 200,262 L206,262
+           C214,286 224,320 236,360 Z" fill="#07051a"/>
+  <path d="M150,250 C142,262 132,276 128,296 L140,300 C146,284 154,270 166,262 Z" fill="#100c2c"/>
+
+  <!-- Head in profile, facing right -->
+  <path d="M150,40 C178,40 200,56 207,82 C211,98 213,112 214,124 C214,130 211,136 211,141
+           C217,152 228,164 236,174 C239,178 237,184 231,186 C227,187 223,188 221,191
+           C221,195 223,198 225,201 C222,204 219,205 219,207 C221,209 223,212 222,216
+           C219,219 215,220 215,224 C217,230 219,236 216,242 C212,250 202,253 190,253
+           C178,252 166,246 156,238 C140,228 120,210 108,186 L150,40 Z" fill="#07051a"/>
+
+  <!-- Bob: an angled cut, longer in front -->
+  <path d="M204,78 C198,48 174,30 146,30 C110,30 86,54 80,90 C74,130 78,166 84,200 L90,212
+           C112,220 140,232 170,254 C164,226 160,198 164,172 C168,146 176,118 186,100 C192,90 198,84 204,78 Z" fill="#0c0926"/>
+  <path d="M186,100 C176,118 168,146 164,172 C160,198 164,226 170,254" fill="none" stroke="#6ed6ff" stroke-width="1" opacity="0.25"/>
+
+  <!-- Rim light: cyan from the window on the face and coat, pink on the crown -->
+  <g class="portrait-rim" fill="none" stroke-linecap="round" filter="url(#vesna-glow)">
+    <path d="M182,44 C198,52 205,68 207,82 C211,98 213,112 214,124 C214,130 211,136 211,141
+             C217,152 228,164 236,174 C239,178 237,184 231,186 C227,187 223,188 221,191
+             C221,195 223,198 225,201 C222,204 219,205 219,207 C221,209 223,212 222,216
+             C219,219 215,220 215,224 C217,230 219,236 216,242 C212,250 202,253 190,253"
+          stroke="#6ed6ff" stroke-width="2" opacity="0.95"/>
+    <path d="M206,262 C214,286 224,320 236,360" stroke="#6ed6ff" stroke-width="1.6" opacity="0.55"/>
+    <path d="M110,34 C130,28 156,28 176,38" stroke="#ff7ad9" stroke-width="1.6" opacity="0.6"/>
+  </g>
+
+  <!-- Cybernetic eye -->
+  <path class="portrait-eye" d="M193,133 L206,131" stroke="#bff3ff" stroke-width="2.6" stroke-linecap="round" filter="url(#vesna-glow)"/>
+</svg>

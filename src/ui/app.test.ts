@@ -31,7 +31,7 @@ async function playOneRun(root: HTMLElement): Promise<void> {
     await settle();
     const next =
       root.querySelector<HTMLButtonElement>('.btn-roll:not(:disabled)') ??
-      root.querySelector<HTMLButtonElement>('button.split-card:not(:disabled), .split-fork:not(:disabled)') ??
+      root.querySelector<HTMLButtonElement>('button.split-card:not(:disabled), .split-fork:not(:disabled), .jackpot-file:not(:disabled)') ??
       buttonLabelled(root, 'Take the hit');
     next?.click();
   }

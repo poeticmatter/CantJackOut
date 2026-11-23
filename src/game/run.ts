@@ -3,7 +3,7 @@ import type { Die } from './dice';
 import { FILE_IDS, type FileId, fileIndex } from './files';
 import { type StreamContext, streamsAfter } from './pairing';
 import type { Rng } from './random';
-import { type RollRecord, isMissedRoll, rollDice } from './roll';
+import { type RollChoice, type RollRecord, chosenFiles, isMissedRoll, rollDice } from './roll';
 import {
   ALERT_PER_FLATLINE, ALERT_PER_VISIT, type Buffer, type Server, burnBankedStep, emptyBuffer, fullFiles, hasModifier,
   isAlertFull, purgeServer, raiseAlert, remainingSteps, withBanked,
@@ -11,7 +11,7 @@ import {
 
 /**
  * connected: jacked in (or just rerouted), ready to roll. choosing: the dice are down and the
- * player picks a split. hit: the split is applied. missed: no split was usable and the player
+ * player picks a split, or a file for a jackpot. hit: the split is applied. missed: no split was usable and the player
  * may still run a rescue program. over: the run has ended.
  */
 export type RunStatus = 'connected' | 'choosing' | 'hit' | 'missed' | 'over';
@@ -90,13 +90,15 @@ function applyFreshRoll(run: RunState, server: Server, dice: readonly Die[], rng
   return { ...run, rolls: run.rolls + 1, lastRoll, status: isMissedRoll(lastRoll) ? 'missed' : 'choosing' };
 }
 
-/** Takes one of the rolled splits: each usable pair downloads a block of its file. */
-export function chooseSplit(run: RunState, server: Server, splitIndex: number, choiceIndex: number): RunState {
-  if (run.status !== 'choosing' || run.lastRoll === null) throw new Error('There is no roll to split');
-  const choice = run.lastRoll.options[splitIndex]?.choices[choiceIndex];
-  if (choice === undefined) throw new Error('That split can’t download anything');
+/** Applies the player's choice for the roll: each usable pair, or the jackpot, downloads a block. */
+export function applyChoice(run: RunState, server: Server, choice: RollChoice): RunState {
+  if (run.status !== 'choosing' || run.lastRoll === null) throw new Error('There is no roll to choose for');
+  if (choice.kind === 'jackpot' && !run.lastRoll.jackpotFiles.includes(choice.file)) {
+    throw new Error(`The jackpot can’t reach ${choice.file}`);
+  }
+  const files = chosenFiles(run.lastRoll, choice);
   const live = liveServer(server, run);
-  const buffer = choice.reduce((next, file) => {
+  const buffer = files.reduce((next, file) => {
     const index = fileIndex(file);
     const room = remainingSteps(live.files[index], next[index]);
     return next.map((steps, position) => (position === index ? steps + Math.min(1, room) : steps));
@@ -104,12 +106,20 @@ export function chooseSplit(run: RunState, server: Server, splitIndex: number, c
   const next: RunState = {
     ...run,
     buffer,
-    streams: streamsAfter(run.streams, choice),
-    lastRoll: { ...run.lastRoll, chosen: { splitIndex, choiceIndex } },
+    streams: streamsAfter(run.streams, files),
+    lastRoll: { ...run.lastRoll, chosen: choice },
     status: 'hit',
   };
   const isEverythingFull = fullFiles(live, buffer).length === FILE_IDS.length;
   return isEverythingFull ? { ...next, status: 'over', ending: 'downloaded' } : next;
+}
+
+export function chooseSplit(run: RunState, server: Server, splitIndex: number, choiceIndex: number): RunState {
+  return applyChoice(run, server, { kind: 'split', splitIndex, choiceIndex });
+}
+
+export function chooseJackpotFile(run: RunState, server: Server, file: FileId): RunState {
+  return applyChoice(run, server, { kind: 'jackpot', file });
 }
 
 export function canReroute(run: RunState): boolean {

@@ -1,4 +1,4 @@
 node_modules
 dist
-# Source photos stay local; only what is derived from them ships.
+# Reference photos stay local and never ship.
 ReferenceImages/

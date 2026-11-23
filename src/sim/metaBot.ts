@@ -2,12 +2,12 @@
  * A competent-but-simple bot that plays whole campaigns, for the balance tools.
  * It never sees hidden server details it hasn't revealed.
  */
-import { acceptFlatline, bankAndJackOut, jackIn, roll, takeSplit, useBounce, useFailsafe, waitForDawn } from '../game/actions';
+import { acceptFlatline, bankAndJackOut, jackIn, roll, takeChoice, useBounce, useFailsafe, waitForDawn } from '../game/actions';
 import { type CampaignState, findServer, isProgramReady, newCampaign, vigForNight } from '../game/campaign';
 import { isDawn } from '../game/clock';
 import { settleDawn } from '../game/dawn';
 import { simulateDownload } from '../game/difficulty';
-import { chooseReferenceSplit, shouldKeepRolling } from '../game/policy';
+import { chooseReferenceMove, shouldKeepRolling } from '../game/policy';
 import { createRng } from '../game/random';
 import { type Server, remainingValue } from '../game/server';
 import { buyProgram } from '../game/shop';
@@ -64,8 +64,7 @@ function playRun(state: CampaignState): CampaignState {
       else if (isProgramReady(current, 'failsafe')) current = useFailsafe(current);
       else current = acceptFlatline(current);
     } else if (run.status === 'choosing') {
-      const pick = chooseReferenceSplit(run, server, current.dice);
-      current = takeSplit(current, pick.splitIndex, pick.choiceIndex);
+      current = takeChoice(current, chooseReferenceMove(run, server, current.dice));
     } else if (shouldKeepRolling(run, server, current.dice)) {
       current = roll(current);
     } else {

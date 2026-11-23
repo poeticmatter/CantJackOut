@@ -2,8 +2,9 @@ import { generateServerForNight } from './board';
 import { type CampaignState, allocateId, findServer, spendCharge, withRng } from './campaign';
 import { isDawn } from './clock';
 import type { Rng } from './random';
+import type { RollChoice } from './roll';
 import {
-  type RunState, bounceMiss, chooseSplit, flatline, flatlineWithFailsafe, jackOut, reroute, rollRun, runAftermath,
+  type RunState, applyChoice, bounceMiss, flatline, flatlineWithFailsafe, jackOut, reroute, rollRun, runAftermath,
   runMinutes, startRun,
 } from './run';
 import { type Server, isFileFinished, isFullyDownloaded } from './server';
@@ -55,8 +56,9 @@ export function roll(state: CampaignState): CampaignState {
   return stepRun(state, (run, server, rng) => rollRun(run, server, state.dice, rng));
 }
 
-export function takeSplit(state: CampaignState, splitIndex: number, choiceIndex: number): CampaignState {
-  return stepRun(state, (run, server) => chooseSplit(run, server, splitIndex, choiceIndex));
+/** Takes a split of the last roll, or puts a jackpot's block in a file. */
+export function takeChoice(state: CampaignState, choice: RollChoice): CampaignState {
+  return stepRun(state, (run, server) => applyChoice(run, server, choice));
 }
 
 export function bankAndJackOut(state: CampaignState): CampaignState {

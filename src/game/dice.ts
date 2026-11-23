@@ -1,6 +1,6 @@
 import type { Rng } from './random';
 
-export const COLORS = ['red', 'blue', 'green'] as const;
+export const COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 export type Color = (typeof COLORS)[number];
 
 /**
@@ -16,8 +16,8 @@ export interface Die {
 
 export const FACES_PER_DIE = 6;
 
-/** The 1 / 2 / 3 split is the game's core odds: red is rare, green is common. */
-export const STANDARD_FACES: readonly Face[] = ['red', 'blue', 'blue', 'green', 'green', 'green'];
+/** Red and blue are rare, green and yellow common: the game's core odds. Every die is the same. */
+export const STANDARD_FACES: readonly Face[] = ['red', 'blue', 'green', 'green', 'yellow', 'yellow'];
 
 export function createStandardDie(id: string): Die {
   return { id, faces: STANDARD_FACES };
@@ -30,5 +30,5 @@ export function rollFaceIndex(rng: Rng): number {
 /** Chance a die shows each color. */
 export function colorOdds(die: Die): Record<Color, number> {
   const count = (color: Color) => die.faces.filter((face) => face === color).length / die.faces.length;
-  return { red: count('red'), blue: count('blue'), green: count('green') };
+  return { red: count('red'), blue: count('blue'), green: count('green'), yellow: count('yellow') };
 }

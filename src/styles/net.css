@@ -217,14 +217,14 @@
 .file-bar-track {
   height: 10px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--tone) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(217, 210, 255, 0.3);
   overflow: hidden;
 }
 .file-bar-fill {
   height: 100%;
-  background: var(--tone);
-  box-shadow: 0 0 10px var(--tone);
+  background: var(--chips);
+  box-shadow: 0 0 8px rgba(217, 210, 255, 0.4);
 }
 .file-bar-count {
   font-family: var(--font-display);

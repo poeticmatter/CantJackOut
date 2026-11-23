@@ -19,27 +19,27 @@ Make every one of Vesna's ten dawn payments. Miss one and you get a strike; at t
 
 ### Dice
 
-You roll four dice. Each has six faces: **1 red, 2 blue and 3 green**, so red comes up least and green most. Each color also has a shape (red triangle, blue square, green circle), so you never have to rely on color alone. Your dice never change.
+You roll four dice, and every die is the same: **1 red, 1 blue, 2 green and 2 yellow** faces. Red and blue are rare; green and yellow are common. Each color also has a shape (red triangle, blue square, green circle, yellow diamond), so you never have to rely on color alone. Your dice never change.
 
 ### Servers
 
-Every server holds the same six **files**, one for each pair of colors: **RR, RB, RG, BB, BG and GG**. A file is a tower of blocks. Servers differ only in how tall each file is, and in their security and alert.
+Every server holds the same six **files**, one for each pair of two different colors: **R+B, R+G, R+Y, B+G, B+Y and G+Y**. A file shows as its two colors side by side. A file is a tower of blocks. Servers differ only in how tall each file is, and in their security and alert.
 
-Files for rare pairs are short and files for common pairs are tall, the way Can't Stop's 2 and 12 columns are short and its 7 column is tall. Each file pays its own price, and a short rare file pays about as much as a tall common one at the same tier (RR pays more on small servers, where it can't get any shorter than 2 blocks).
+Files for rare pairs are short and files for common pairs are tall, the way Can't Stop's 2 and 12 columns are short and its 7 column is tall. Each file pays its own price, and a short rare file pays about as much as a tall common one at the same tier.
 
-| How often a roll offers each file | RR | RB | BB | RG | GG | BG |
-|---|---|---|---|---|---|---|
-| Chance at least one split has it | 13% | 38% | 41% | 47% | 69% | 74% |
+| How often a roll offers each file | R+B | R+G, R+Y, B+G, B+Y | G+Y |
+|---|---|---|---|
+| Chance at least one split has it | 23% | 38% each | 62% |
 
-Servers come in five tiers. Harder tiers have taller files and pay more for the same work. Each file can be up to a fifth shorter or a quarter taller than the typical size below.
+Servers come in five tiers. Harder tiers have taller files and pay more for the same work. Each file can be up to a fifth shorter or a quarter taller than the typical size below, and is never shorter than 2 blocks.
 
-| Tier | RR | RB | RG | BB | BG | GG | Typical value |
-|---|---|---|---|---|---|---|---|
-| 1 | 2 | 3 | 4 | 3 | 6 | 6 | $560 |
-| 2 | 2 | 4 | 6 | 4 | 9 | 8 | $900 |
-| 3 | 2 | 6 | 7 | 6 | 11 | 11 | $1,410 |
-| 4 | 3 | 7 | 9 | 7 | 14 | 13 | $2,200 |
-| 5 | 3 | 8 | 10 | 8 | 16 | 15 | $2,940 |
+| Tier | R+B | R+G, R+Y, B+G, B+Y | G+Y | Typical value |
+|---|---|---|---|---|
+| 1 | 2 | 3 | 5 | $490 |
+| 2 | 3 | 4 | 7 | $820 |
+| 3 | 4 | 6 | 8 | $1,430 |
+| 4 | 4 | 7 | 10 | $2,040 |
+| 5 | 5 | 8 | 12 | $2,860 |
 
 Tier 1 servers show up from the first night, and harder tiers join as the nights go on.
 
@@ -53,37 +53,32 @@ Some servers also have security:
 
 ## Setup
 
-You start with $100, four standard dice, one program slot and no programs. The night begins at 22:00.
+You start with $100, four dice, one program slot and no programs. The night begins at 22:00.
 
 ## A run
 
 1. **Choose a server and jack in.** Connecting takes a random 30 to 60 minutes.
 2. **Roll the four dice.** Each roll takes 4 minutes.
-3. **Split them into two pairs.** There are three ways to do it, and you see all three. Each pair downloads one block of the file matching its two colors, in any order: a red and a blue download RB. Both pairs count, even if they match the same file (then that file gets two blocks). New blocks are **at risk** until you bank them.
-4. **Streams.** A run can work on **two files** at most. A file becomes one of your streams the first time you download from it. A pair does nothing if its file is full, or if it would need a third stream. If both pairs of a split would each open a new stream but you only have one free, you pick which one to take. The split you choose decides which streams you open.
-5. **Then choose:**
+3. **Split them into two pairs.** There are three ways to do it, and you see all three. A pair of two different colors downloads one block of the file with those two colors: a red and a blue download R+B. Two dice of the same color never make a pair. If both pairs of your split work, both count, even if they match the same file (then that file gets two blocks). New blocks are **at risk** until you bank them.
+4. **Streams.** A run can work on **three files** at most. A file becomes one of your streams the first time you download from it. A pair does nothing if its file is full, or if it would need a fourth stream. If both pairs of a split would each open a new stream but you only have one free, you pick which one to take. The split you choose decides which streams you open.
+5. **Jackpot.** If all four dice show the same color (about 1 roll in 38), no pair works, but you put one block in any file you choose: one of your open streams, or any other file if you still have a stream free.
+6. **Then choose:**
    - **Roll again** to download more.
    - **Jack out** to bank everything at risk. Banked blocks stay on the server for your next visit.
-   - **Reroute** (once you have something at risk): pay to bank everything at risk and stay connected. Both streams come free again. It costs 15 minutes and $30 to $70 (more on harder servers), which is less time than leaving and connecting again, and the visit doesn't raise the alert again.
-6. **A miss** is a roll where no split has a usable pair. You're **jacked out**: everything at risk is lost, and recovering costs another 20 to 40 minutes. On a server where every file is still open, your first roll can't miss: four dice in three colors always contain a matching pair.
-7. **Selling.** When every block of a file is banked, the fence buys it at once and you're paid its price at the end of the run. When all six files are sold, the server is cracked and a new one takes its place on the net.
+   - **Reroute** (once you have something at risk): pay to bank everything at risk and stay connected. Every stream comes free again. It costs 15 minutes and $30 to $70 (more on harder servers), which is less time than leaving and connecting again, and the visit doesn't raise the alert again.
+7. **A miss** is a roll with no usable pair in any split and no jackpot. You're **jacked out**: everything at risk is lost, and recovering costs another 20 to 40 minutes. On a server where every file is still open, your first roll can't miss.
+8. **Selling.** When every block of a file is banked, the fence buys it and you're paid its price at the end of the run. When all six files are sold, the server is cracked and a new one takes its place on the net.
 
-The screen shows your streams, how many are left, and your exact chance that the next roll isn't a miss:
+The screen shows your streams, how many are left, and your exact chance that the next roll isn't a miss. With three streams open:
 
-| Your two streams | Chance the next roll isn't a miss |
+| Your three streams | Chance the next roll isn't a miss, counting the jackpot |
 |---|---|
-| BB + GG, BG + GG | 93% |
-| RB + GG | 90% |
-| RG + BG | 88% |
-| RG + GG | 86% |
-| RR + BG | 82% |
-| BB + BG, RB + BG | 79 to 80% |
-| RR + GG | 78% |
-| RG + BB | 76% |
-| RB + BB | 64% |
-| RR + BB, RB + RG | 52% |
-| RR + RG | 49% |
-| RR + RB | 43% |
+| G+Y with two middle files that don't share green or yellow, like R+G, B+Y, G+Y (4 sets) | 89% |
+| R+B, G+Y and any middle file (4 sets) | 85% |
+| G+Y with R+G and B+G, or with R+Y and B+Y (2 sets) | 82% |
+| Any three of the middle files R+G, R+Y, B+G, B+Y (4 sets) | 77% |
+| R+B with one middle file that has red and one that has blue, like R+B, R+G, B+Y (4 sets) | 73% |
+| R+B, R+G, R+Y or R+B, B+G, B+Y (2 sets) | 54% |
 
 ## The night and the dawn
 
@@ -104,7 +99,7 @@ Then a new night begins and your programs recharge. Each server you haven't bank
 
 ## The market
 
-Moth's back room is open between runs. It sells no dice.
+Moth's back room is open between runs. It sells no dice: everyone rolls the same four.
 
 **Program slot** ($600, then $1,400, up to three): load one more program.
 

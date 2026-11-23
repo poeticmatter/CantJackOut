@@ -17,7 +17,7 @@ export function renderDieNet(die: Die): HTMLElement {
   return el('div', { className: 'die-net' }, faces);
 }
 
-/** "1 red, 2 blue, 3 green", counting each kind of face once in the order it first appears. */
+/** "1 red, 1 blue, 2 green, 2 yellow", counting each kind of face once in the order it first appears. */
 export function dieSummary(die: Die): string {
   const counts = new Map<string, number>();
   for (const face of die.faces) {

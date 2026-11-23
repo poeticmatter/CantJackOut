@@ -11,10 +11,8 @@ npm test           # vitest: rules tests plus a headless UI smoke test (jsdom)
 npm run build      # typecheck and production build
 npm run deploy     # build and publish to GitHub Pages (gh-pages branch)
 npm run stats      # exact Can't Stop statistics, the calibration target
-npm run stats:pairing  # exact odds for the dice-pairing experiment (files offered, two-stream survival)
+npm run stats:pairing  # exact odds for the dice-pairing experiment (files offered, jackpot, three-stream survival)
 npm run calibrate [servers|meta N]   # reference-bot reports (information only during the pairing experiment)
-python tools/pointcloud.py portrait ReferenceImages/Portrait.jpg src/assets/vesna.json   # rebuild Vesna's face (needs Pillow, numpy, scipy)
-python tools/pointcloud.py moth src/assets/moth.json                                     # rebuild Moth's emblem
 ```
 
 ## Architecture
@@ -22,11 +20,10 @@ python tools/pointcloud.py moth src/assets/moth.json                            
 A single-player, push-your-luck browser game in plain TypeScript and Vite, with no framework and no backend. Live at https://poeticmatter.github.io/CantJackOut/.
 
 - `src/game/`: pure rules. All state is an immutable `CampaignState`; actions are functions from state to new state. Randomness comes from a seeded generator whose state lives in the campaign (`withRng`), so saves are deterministic.
-  - `dice.ts`, `files.ts`, `pairing.ts`, `roll.ts`, `server.ts`, `run.ts`: dice, the six two-color files, splitting four dice into pairs (streams, misses, exact odds), a roll, servers, and a single run's state machine.
+  - `dice.ts`, `files.ts`, `pairing.ts`, `roll.ts`, `server.ts`, `run.ts`: dice, the six two-color files, splitting four dice into pairs (streams, jackpots, misses, exact odds), a roll, servers, and a single run's state machine.
   - `campaign.ts`, `actions.ts`, `dawn.ts`, `shop.ts`: the campaign, run actions, Vesna's dawn payment, and the market and loadout.
   - `policy.ts`, `difficulty.ts`, `board.ts`: the reference player (split choice and push rule), simulated difficulty, and server generation and first-guess pricing.
-- `src/ui/`: DOM views built with the small `el()` helper. `app.ts` routes between screens and keeps open overlays mounted; `runScreen.ts` stays mounted during a run so its dice animations aren't restarted. `handshake.ts` and `fx.ts` are the run's connection sequence and particles; `characterCall.ts` and `pointCloud.ts` draw Vesna and Moth as live point clouds.
-- `tools/pointcloud.py`: turns a picture into the point-cloud JSON in `src/assets/`. Source photos live in `ReferenceImages/`, which is git-ignored: only the JSON ships.
+- `src/ui/`: DOM views built with the small `el()` helper. `app.ts` routes between screens and keeps open overlays mounted; `runScreen.ts` stays mounted during a run so its dice animations aren't restarted. `handshake.ts` and `fx.ts` are the run's connection sequence and particles; `characterCall.ts` shows Vesna and Moth as lit silhouettes: hand-drawn SVGs in `src/assets/` whose classed parts (`portrait-eye`, `portrait-bulb`, `portrait-blinds`) are animated by `characters.css`.
 - `src/sim/`: balance scripts run with `tsx`.
 
 During the dice-pairing experiment, file lengths and prices come from tables in `board.ts` (first guesses), not from simulation. The owner asked not to retune anything from bot simulations until they have playtested it.

@@ -31,7 +31,7 @@ function stepsFor(server: Server, run: RunState): Step[] {
     hasModifier(server, 'tracer')
       ? { text: 'tracer on the line', result: 'spoofed, for now', weight: 1.8, isWarning: true }
       : { text: 'mapping file system', result: 'done', weight: 1 },
-    { text: isReturning ? `back in: ${files}` : `${server.files.length} files found: ${files}`, result: 'two streams ready', weight: 1 },
+    { text: isReturning ? `back in: ${files}` : `${server.files.length} files found: ${files}`, result: 'three streams ready', weight: 1 },
   ];
 }
 

@@ -4,7 +4,38 @@ What changed and why, newest first. **Game design** is the game itself: rules, c
 
 ## Game design
 
-### 2026-11-23: Experiment: multi-colour files and dice pairing
+### 2026-11-23: Dice pairing, second version: four colors, three streams and a jackpot
+The owner revised the pairing experiment below, and this version replaces it. The 3-color version is kept in git history.
+- **Dice:** four colors. Every die is the same: 1 red, 1 blue, 2 green and 2 yellow faces.
+- **Files:** a file is a pair of two different colors, so there are exactly six: R+B, R+G, R+Y, B+G, B+Y, G+Y. Two dice of the same color never pair.
+- **Streams:** a run can work on 3 files, like Can't Stop's three runners. With four colors and no same-color files, no set of three can be held forever: the best is 86%. In the 3-color version, RR+BB+GG never missed.
+- **Jackpot:** when all four dice match, the player puts one block in any file they could legally advance.
+
+The owner decided again on payment per finished file and no dice upgrades. They added that an upgrade must never change the odds of a miss, which rules out any die with a different color mix. The stake stays gone, and reroute frees every stream. Splice stays off.
+
+**Exact odds** for four dice (`npm run stats:pairing`):
+- **Chance each file is in at least one split:** R+B 23.30%; R+G, R+Y, B+G and B+Y 38.27% each; G+Y 61.73%. These match the owner's figures.
+- **Jackpot:** 34 in 1,296 rolls, or 2.62%.
+- **The first roll always places something:** four dice either show two different colors, which can always be paired, or are a jackpot.
+
+Survival with three open streams, from pairs alone and then counting the jackpot. The pairs-alone range is 51.7% to 86.4% with a median of 76.5%, matching the owner's estimate of about 52% to 86%, median 77%. The jackpot adds 2.62 points to every set, for 54.3% to 89.0%, median 79.2%:
+- **86.4% / 89.0%:** G+Y with R+G and R+Y, with R+G and B+Y, with R+Y and B+G, or with B+G and B+Y.
+- **82.6% / 85.2%:** R+B and G+Y with any of the four middle files.
+- **79.0% / 81.6%:** G+Y with R+G and B+G, or with R+Y and B+Y.
+- **74.1% / 76.7%:** any three of the four middle files.
+- **70.2% / 72.8%:** R+B with one middle file that has red and one that has blue.
+- **51.7% / 54.3%:** R+B with R+G and R+Y, or with B+G and B+Y.
+
+**Base lengths.** Can't Stop's column heights rise almost linearly with how often a column can be advanced. R+B is offered 23.3% of the time, exactly as often as Can't Stop's 3 and 11 columns, so it gets their 5 steps. The middle files at 38% get 8, and G+Y at 62% gets 12, just short of the 7 column's 13 at 64%. Length divided by availability comes out at 19 to 22 for every file, so each takes about the same number of offered rolls. Those are the tier 5 sizes. Lower tiers are scaled-down copies (×0.4, 0.55, 0.7, 0.85 and 1 for tiers 1 to 5), so a tier 1 server is typically R+B 2, middle files 3 and G+Y 5, 19 blocks in all. Each file varies between ×0.8 and ×1.25, with a minimum of 2 blocks.
+
+**First-guess prices, not tuned.** As in the first version:
+- A file pays $10 × (length ÷ chance it's offered) × the tier multiplier, rounded to $10. A typical tier 1 server is worth about $490 and tier 5 about $2,860.
+- A server's alert limit is a third of its blocks, at least 6.
+- Vesna's cut, reroute and program prices are unchanged.
+
+**What the reference bot says, for information only.** On a fresh tier 1 server the bot banks about 4.6 blocks per run, rolls 3.2 times and flatlines 8% of runs. With no alert limit it downloads a whole tier 1 server in about 13 runs (about 820 minutes), roughly $0.60 a minute. The first-guess alert limit of 7 sits well below those 13 runs, so the bot gets purged over and over and needs about 43 runs. Watch for that in play: the alert rule looks too tight for six-file servers, and the pay rate is below the old game's $1 a minute.
+
+### 2026-11-23: Experiment: multi-colour files and dice pairing (first version, replaced)
 The owner's proposal to bring Can't Stop's core decision into the game. It is built on its own branch so it can be playtested against the old game. The owner made three decisions:
 - **Streams:** a run can work on 2 files, not 3. With 3 streams, holding RR, BB and GG could never miss: 4 dice in 3 colors always contain a same-color pair. Most other sets of three also sat above 90%. Two streams give 43% to 93%, almost exactly Can't Stop's 44% to 92% for three runners.
 - **Payment:** each file pays when it's finished. The server leaves once all six are sold.
@@ -92,6 +123,24 @@ Three standard dice on a one-file server hit 42.1% (red), 70.4% (blue) and 87.5%
 Pick a server and roll. Every die matching an unfinished file downloads a block; jack out to bank, or keep rolling and risk losing everything unbanked. Banked progress stays on the server between runs, but only a complete download sells. A finished file stops counting as a hit, like a claimed column in Can't Stop, so pushing gets riskier near the end of a server. Servers hold one or two files. Two-file servers almost never miss until one file finishes; watch in playtest whether that stretch feels like a rush or like dead time.
 
 ## Game development
+
+### 2026-11-23: Vesna and Moth as noir silhouettes
+From playtest round 2: the owner found Vesna's point-cloud face and Moth's emblem unpolished, and asked that Vesna not be based on their portrait at all. Of three directions mocked up (calling-card emblems, noir silhouettes and voice-only voiceprints), the owner picked the silhouettes, without the cigarette Vesna had in the mockup.
+- **Vesna:** a silhouette in profile behind venetian blinds, lit cyan from the window, with an angled bob and a cybernetic eye. The eye flickers while she talks, and the picture glitches when you come up short.
+- **Moth:** a hooded figure in the back room with glowing moth-eye goggles and a respirator, under a swaying bare bulb. The goggles flicker while Moth talks.
+- **Drawn, not traced:** both are hand-drawn vector art, so they stay sharp at any size, and nothing made from the owner's photo ships any more.
+
+### 2026-11-23: Four colors and the jackpot on screen
+- **Yellow:** a new color with a diamond shape, so it never relies on color alone.
+- **Files as two colors:** every file shows as two chips side by side, never a blend. Tower blocks and the file bars on server cards are split half and half between the file's two colors, and borders and badges use a neutral light.
+- **Streams:** the console has three stream slots.
+- **Split cards:** a same-color pair shows dimmed with a dashed outline, and the card says why it does nothing.
+- **Jackpot:**
+  - **Dice and screen:** all four dice flare in their color and burst, the screen flashes gold and shakes, a large JACKPOT rises from the dice, and stars rain down to a slot-machine run of bells.
+  - **File picker:** the console swaps the split cards for a jackpot panel with an animated banner and one button per reachable file, each marked if it would open a stream. Number keys pick a file, and every reachable tower pulses gold.
+  - **Blocks:** they fly from all four dice.
+- **Flying blocks:** on any roll, each scoring die sends its blocks in its own color.
+- **Stats:** `npm run stats:pairing` prints each file's odds, the jackpot chance, and survival for every set of three streams, with and without the jackpot.
 
 ### 2026-11-23: Dice pairing on screen
 The run screen shows six towers, one per file, each with its price. Open streams are lit and labelled, and files the run can no longer reach are dimmed. The console shows both stream slots and how many are left. After a roll it replaces the roll buttons with the three splits. Each split shows its two pairs and the blocks it would add, flags any new stream it would open, and says why an idle pair does nothing. Hovering a split lifts the towers it would advance. Keys 1, 2 and 3 take a split. When a split can only take one of its pairs, its number key opens it and A or B picks the pair. On the net, each file bar on a server card shows its price, and the card shows what the server is still worth. `npm run stats:pairing` prints the exact pairing odds, and `npm run calibrate` reports on the new mechanic (modes `servers` and `meta`). Saves from before the experiment don't carry over.

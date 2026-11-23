@@ -2,7 +2,7 @@ import type { Color } from '../game/dice';
 
 /** All sounds are synthesised, so the game ships with no audio files. */
 const MUTE_KEY = 'cant-jack-out:muted';
-const HIT_PITCH: Record<Color, number> = { red: 880, blue: 660, green: 520 };
+const HIT_PITCH: Record<Color, number> = { red: 880, blue: 660, green: 520, yellow: 1040 };
 
 let context: AudioContext | null = null;
 let isMuted = localStorage.getItem(MUTE_KEY) === 'true';
@@ -101,11 +101,11 @@ export const sfx = {
   fileCracked: (color: Color) =>
     [1, 1.25, 1.5, 2].forEach((ratio, index) => tone({ frequency: HIT_PITCH[color] * ratio, duration: 0.25, type: 'triangle', volume: 0.06, delay: index * 0.06 })),
   tick: () => tone({ frequency: 2200, duration: 0.03, type: 'square', volume: 0.02 }),
-  firewall: () => {
-    tone({ frequency: 240, endFrequency: 480, duration: 0.25, type: 'triangle', volume: 0.07 });
-    noise(0.2, 0.05, 0, 600);
+  /** Four of a kind: a slot-machine run of bells over a rising sweep. */
+  jackpot: () => {
+    tone({ frequency: 200, endFrequency: 1600, duration: 0.6, type: 'sawtooth', volume: 0.04 });
+    [784, 988, 1175, 1568, 1976, 2349].forEach((frequency, index) => tone({ frequency, duration: 0.18, type: 'square', volume: 0.035, delay: 0.15 + index * 0.07 }));
   },
-  payday: () => [1568, 2093].forEach((frequency, index) => tone({ frequency, duration: 0.12, type: 'square', volume: 0.03, delay: index * 0.06 })),
   reroute: () => {
     tone({ frequency: 300, endFrequency: 1200, duration: 0.3, type: 'sawtooth', volume: 0.04 });
     [523, 784].forEach((frequency, index) => tone({ frequency, duration: 0.2, type: 'triangle', delay: 0.25 + index * 0.08 }));

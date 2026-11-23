@@ -294,7 +294,7 @@
 }
 .stream-slots {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .stream-slot {
@@ -430,4 +430,83 @@ button.split-card:focus-visible,
 .split-fork:hover:not(:disabled),
 .split-fork:focus-visible {
   border-color: var(--amber);
+}
+
+/* Jackpot picker ------------------------------------------------------------------ */
+.jackpot-picker {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--yellow);
+  border-radius: var(--radius);
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 233, 74, 0.18), transparent 70%), var(--smoke-raised);
+  box-shadow: 0 0 28px rgba(255, 233, 74, 0.25);
+}
+.jackpot-banner {
+  position: relative;
+  justify-self: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step-3);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  text-shadow: 0 0 18px var(--yellow), -2px 0 rgba(255, 61, 110, 0.6), 2px 0 rgba(63, 167, 255, 0.6);
+  animation: jackpot-banner-in 500ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both, jackpot-banner-glow 1.2s ease-in-out 500ms infinite;
+}
+.jackpot-text {
+  text-align: center;
+  color: var(--text);
+}
+.jackpot-files {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.jackpot-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 233, 74, 0.45);
+  border-radius: var(--radius-small);
+}
+.jackpot-file:hover:not(:disabled),
+.jackpot-file:focus-visible {
+  border-color: var(--yellow);
+  box-shadow: 0 0 14px rgba(255, 233, 74, 0.45);
+}
+.jackpot-file .split-new-stream {
+  margin-left: auto;
+}
+.jackpot-file-glyph {
+  width: 30px;
+  height: 20px;
+}
+.split-pair.is-same {
+  opacity: 0.45;
+  outline: 1px dashed var(--muted);
+}
+@keyframes jackpot-banner-in {
+  from {
+    transform: scale(2.2) rotate(-6deg);
+    opacity: 0;
+  }
+}
+@keyframes jackpot-banner-glow {
+  50% {
+    text-shadow: 0 0 30px var(--yellow), 0 0 50px rgba(255, 182, 72, 0.8), -2px 0 rgba(255, 61, 110, 0.6), 2px 0 rgba(63, 167, 255, 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jackpot-banner,
+  .tower.is-jackpot-target .tower-shaft,
+  .run-screen.is-jackpot-roll::after {
+    animation: none;
+  }
 }

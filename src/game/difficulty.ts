@@ -1,8 +1,8 @@
 import { type Die, createStandardDie } from './dice';
 import { DICE_PER_ROLL } from './pairing';
-import { REFERENCE_RISK_APPETITE, chooseReferenceSplit, shouldKeepRolling } from './policy';
+import { REFERENCE_RISK_APPETITE, chooseReferenceMove, shouldKeepRolling } from './policy';
 import { type Rng, createRng } from './random';
-import { type RunState, canRoll, chooseSplit, flatline, jackOut, rollRun, runMinutes, serverAfterRun, startRun } from './run';
+import { type RunState, applyChoice, canRoll, flatline, jackOut, rollRun, runMinutes, serverAfterRun, startRun } from './run';
 import { type Server, isFullyDownloaded } from './server';
 
 export const REFERENCE_DICE: readonly Die[] = Array.from({ length: DICE_PER_ROLL }, (_, index) =>
@@ -23,13 +23,12 @@ export interface DownloadSimulationOptions {
   readonly riskAppetite?: number;
 }
 
-/** One run by the reference player: roll, take its favorite split, and jack out when the push rule says so. */
+/** One run by the reference player: roll, take its favorite move, and jack out when the push rule says so. */
 export function playReferenceRun(server: Server, dice: readonly Die[], rng: Rng, riskAppetite: number): RunState {
   let run = startRun(server, false, rng);
   for (;;) {
     if (run.status === 'choosing') {
-      const pick = chooseReferenceSplit(run, server, dice);
-      run = chooseSplit(run, server, pick.splitIndex, pick.choiceIndex);
+      run = applyChoice(run, server, chooseReferenceMove(run, server, dice));
     } else if (canRoll(run)) {
       run = shouldKeepRolling(run, server, dice, riskAppetite) ? rollRun(run, server, dice, rng) : jackOut(run);
     } else {

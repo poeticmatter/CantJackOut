@@ -1,27 +1,26 @@
-import type { Color } from './dice';
+import { COLORS, type Color } from './dice';
 
-/** Every server holds one file per two-color combination; the order here is the order on screen. */
-export const FILE_IDS = ['RR', 'RB', 'RG', 'BB', 'BG', 'GG'] as const;
+/**
+ * Every server holds one file per pair of two different colors; the order here is the order on
+ * screen. Two dice of the same color never make a pair.
+ */
+export const FILE_IDS = ['RB', 'RG', 'RY', 'BG', 'BY', 'GY'] as const;
 export type FileId = (typeof FILE_IDS)[number];
 
 export const FILE_COLORS: Record<FileId, readonly [Color, Color]> = {
-  RR: ['red', 'red'],
   RB: ['red', 'blue'],
   RG: ['red', 'green'],
-  BB: ['blue', 'blue'],
+  RY: ['red', 'yellow'],
   BG: ['blue', 'green'],
-  GG: ['green', 'green'],
+  BY: ['blue', 'yellow'],
+  GY: ['green', 'yellow'],
 };
 
-const COLOR_ORDER: Record<Color, number> = { red: 0, blue: 1, green: 2 };
-
-/** The file a pair of dice downloads; the order of the two dice doesn't matter. */
-export function fileForPair(first: Color, second: Color): FileId {
-  const match = FILE_IDS.find((id) => {
-    const [low, high] = FILE_COLORS[id];
-    const [a, b] = COLOR_ORDER[first] <= COLOR_ORDER[second] ? [first, second] : [second, first];
-    return low === a && high === b;
-  });
+/** The file a pair of dice downloads, in either order, or null for two of the same color. */
+export function fileForPair(first: Color, second: Color): FileId | null {
+  if (first === second) return null;
+  const [low, high] = COLORS.indexOf(first) < COLORS.indexOf(second) ? [first, second] : [second, first];
+  const match = FILE_IDS.find((id) => FILE_COLORS[id][0] === low && FILE_COLORS[id][1] === high);
   if (match === undefined) throw new Error(`No file for ${first} + ${second}`);
   return match;
 }

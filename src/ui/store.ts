@@ -2,8 +2,8 @@ import { type CampaignState, newCampaign } from '../game/campaign';
 import { showToast } from './toast';
 
 const SAVE_KEY = 'cant-jack-out:save';
-/** Version 3: the dice-pairing experiment (six files per server, streams) changed the shape of a save. */
-const SAVE_VERSION = 3;
+/** Version 4: four colors and the jackpot (version 3 was the three-color pairing experiment). */
+const SAVE_VERSION = 4;
 
 interface SaveFile {
   readonly version: number;

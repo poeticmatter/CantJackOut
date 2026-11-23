@@ -9,10 +9,11 @@ export const MAX_TIER = 5;
 
 /**
  * Blocks per file on a tier 5 server, on Can't Stop's scale. Can't Stop's column heights rise
- * almost linearly with how often a column can be advanced (3 steps at 13%, 13 at 64%); these
- * follow the same line through each file's chance to be in at least one split of 4 standard dice.
+ * almost linearly with how often a column can be advanced (3 steps at 13%, 5 at 23%, 13 at 64%);
+ * these follow the same line through each file's chance to be in at least one split of 4 dice.
+ * R+B is offered 23.3% of the time, exactly like Can't Stop's 3 and 11 columns, so it gets their 5.
  */
-const FULL_LENGTH: Record<FileId, number> = { RR: 3, RB: 8, RG: 10, BB: 8, BG: 16, GG: 15 };
+const FULL_LENGTH: Record<FileId, number> = { RB: 5, RG: 8, RY: 8, BG: 8, BY: 8, GY: 12 };
 /** Lower tiers are smaller copies of the same shape. */
 const LENGTH_SCALE_BY_TIER: Record<number, number> = { 1: 0.4, 2: 0.55, 3: 0.7, 4: 0.85, 5: 1 };
 /** Each file varies by up to this much either way, so servers of a tier differ in shape. */

@@ -4,8 +4,8 @@ import type { Color, Die } from './dice';
 import { FILE_IDS, type FileId } from './files';
 import { createRng } from './random';
 import {
-  type RunState, canReroute, chooseSplit, flatline, flatlineWithFailsafe, jackOut, reroute, rollRun, runMinutes,
-  serverAfterRun, startRun,
+  type RunState, canReroute, chooseJackpotFile, chooseSplit, flatline, flatlineWithFailsafe, jackOut, reroute, rollRun,
+  runMinutes, serverAfterRun, startRun,
 } from './run';
 import type { Server, ServerModifier } from './server';
 
@@ -36,85 +36,126 @@ function riggedDice(colors: [Color, Color, Color, Color]): Die[] {
 }
 
 const rng = () => createRng(1);
-const RED_BLUE_GREEN_GREEN = riggedDice(['red', 'blue', 'green', 'green']);
-const ALL_RED = riggedDice(['red', 'red', 'red', 'red']);
+/** Splits into RB + GY, RG + BY, or RY + BG. */
+const ONE_OF_EACH = riggedDice(['red', 'blue', 'green', 'yellow']);
+/** Only RB + RB works. */
+const TWO_RED_TWO_BLUE = riggedDice(['red', 'red', 'blue', 'blue']);
+/** Only BY + BY works. */
+const TWO_BLUE_TWO_YELLOW = riggedDice(['blue', 'blue', 'yellow', 'yellow']);
+const ALL_GREEN = riggedDice(['green', 'green', 'green', 'green']);
 
 function blocksOf(run: RunState, file: FileId): number {
   return run.buffer[FILE_IDS.indexOf(file)];
 }
 
-/** Rolls the dice and takes the first split's first choice. */
-function rollAndTakeFirst(run: RunState, server: Server, dice: Die[]): RunState {
-  return chooseSplit(rollRun(run, server, dice, rng()), server, 0, 0);
+function roll(run: RunState, server: Server, dice: Die[]): RunState {
+  return rollRun(run, server, dice, rng());
+}
+
+/** Rolls the dice and takes the first usable split. */
+function rollAndTake(run: RunState, server: Server, dice: Die[], choice = 0): RunState {
+  const rolled = roll(run, server, dice);
+  const splitIndex = rolled.lastRoll?.options.findIndex((option) => option.choices.length > 0) ?? -1;
+  return chooseSplit(rolled, server, splitIndex, choice);
+}
+
+/** RB, GY and RG open: all three streams taken. */
+function withStreamsFull(server: Server): RunState {
+  const twoOpen = rollAndTake(startRun(server, false, rng()), server, ONE_OF_EACH);
+  return chooseSplit(roll(twoOpen, server, ONE_OF_EACH), server, 1, 0);
 }
 
 describe('a roll', () => {
   const server = makeServer();
 
   it('waits for the player to choose a split', () => {
-    expect(rollRun(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN, rng()).status).toBe('choosing');
+    expect(roll(startRun(server, false, rng()), server, ONE_OF_EACH).status).toBe('choosing');
   });
 
   it('downloads a block of each file in the chosen split', () => {
-    const run = rollAndTakeFirst(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN);
-    expect([blocksOf(run, 'RB'), blocksOf(run, 'GG')]).toEqual([1, 1]);
+    const run = rollAndTake(startRun(server, false, rng()), server, ONE_OF_EACH);
+    expect([blocksOf(run, 'RB'), blocksOf(run, 'GY')]).toEqual([1, 1]);
   });
 
   it('opens a stream for each new file it touches', () => {
-    const run = rollAndTakeFirst(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN);
-    expect(run.streams).toEqual(['RB', 'GG']);
+    expect(rollAndTake(startRun(server, false, rng()), server, ONE_OF_EACH).streams).toEqual(['RB', 'GY']);
   });
 
   it('downloads two blocks when both pairs match the same file', () => {
-    const run = rollAndTakeFirst(startRun(server, false, rng()), server, ALL_RED);
-    expect(blocksOf(run, 'RR')).toBe(2);
+    expect(blocksOf(rollAndTake(startRun(server, false, rng()), server, TWO_RED_TWO_BLUE), 'RB')).toBe(2);
   });
 
-  it('misses when every split needs a third stream', () => {
-    const run = rollAndTakeFirst(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN);
-    expect(rollRun(run, server, ALL_RED, rng()).status).toBe('missed');
+  it('opens at most three streams', () => {
+    expect(withStreamsFull(server).streams).toEqual(['RB', 'GY', 'RG']);
+  });
+
+  it('misses when every pair needs a fourth stream', () => {
+    expect(roll(withStreamsFull(server), server, TWO_BLUE_TWO_YELLOW).status).toBe('missed');
   });
 
   it('refuses a split that downloads nothing', () => {
-    const streamsFull = rollAndTakeFirst(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN);
-    const missed = rollRun(streamsFull, server, ALL_RED, rng());
-    expect(() => chooseSplit({ ...missed, status: 'choosing' }, server, 0, 0)).toThrow();
+    const missed = roll(withStreamsFull(server), server, TWO_BLUE_TWO_YELLOW);
+    expect(() => chooseSplit({ ...missed, status: 'choosing' }, server, 1, 0)).toThrow();
   });
 
   it('stops a file at its length', () => {
-    const short = makeServer({ RR: [3, 2] });
-    const run = rollAndTakeFirst(startRun(short, false, rng()), short, ALL_RED);
-    expect(blocksOf(run, 'RR')).toBe(1);
+    const short = makeServer({ RB: [3, 2] });
+    expect(blocksOf(rollAndTake(startRun(short, false, rng()), short, TWO_RED_TWO_BLUE), 'RB')).toBe(1);
+  });
+});
+
+describe('a jackpot', () => {
+  const server = makeServer();
+
+  it('waits for the player to pick a file', () => {
+    expect(roll(startRun(server, false, rng()), server, ALL_GREEN).lastRoll?.jackpotFiles).toEqual([...FILE_IDS]);
+  });
+
+  it('puts one block in the chosen file', () => {
+    const run = chooseJackpotFile(roll(startRun(server, false, rng()), server, ALL_GREEN), server, 'RB');
+    expect(blocksOf(run, 'RB')).toBe(1);
+  });
+
+  it('opens a stream for a new file', () => {
+    expect(chooseJackpotFile(roll(startRun(server, false, rng()), server, ALL_GREEN), server, 'BY').streams).toEqual(['BY']);
+  });
+
+  it('only reaches open streams once all three are taken', () => {
+    const rolled = roll(withStreamsFull(server), server, ALL_GREEN);
+    expect(() => chooseJackpotFile(rolled, server, 'BY')).toThrow();
+  });
+
+  it('saves a roll that has no usable pair', () => {
+    expect(roll(withStreamsFull(server), server, ALL_GREEN).status).toBe('choosing');
   });
 });
 
 describe('ending a run', () => {
   it('banks the download when you jack out', () => {
     const server = makeServer();
-    const run = jackOut(rollAndTakeFirst(startRun(server, false, rng()), server, ALL_RED));
+    const run = jackOut(rollAndTake(startRun(server, false, rng()), server, TWO_RED_TWO_BLUE));
     expect(serverAfterRun(server, run).files[0].banked).toBe(2);
   });
 
   it('ends as downloaded when the last open files fill', () => {
-    const almostDone = makeServer({ RR: [2, 1], RB: [2, 2], RG: [2, 2], BB: [2, 2], BG: [2, 2], GG: [2, 2] });
-    const run = rollAndTakeFirst(startRun(almostDone, false, rng()), almostDone, ALL_RED);
-    expect(run.ending).toBe('downloaded');
+    const almostDone = makeServer({ RB: [2, 1], RG: [2, 2], RY: [2, 2], BG: [2, 2], BY: [2, 2], GY: [2, 2] });
+    expect(rollAndTake(startRun(almostDone, false, rng()), almostDone, TWO_RED_TWO_BLUE).ending).toBe('downloaded');
   });
 });
 
 describe('rerouting', () => {
   const server = makeServer();
-  const afterHit = rollAndTakeFirst(startRun(server, false, rng()), server, RED_BLUE_GREEN_GREEN);
+  const afterHit = rollAndTake(startRun(server, false, rng()), server, ONE_OF_EACH);
 
   it('needs something at risk', () => {
     expect(canReroute(startRun(server, false, rng()))).toBe(false);
   });
 
   it('banks the download', () => {
-    expect(reroute(afterHit).banked[FILE_IDS.indexOf('GG')]).toBe(1);
+    expect(reroute(afterHit).banked[FILE_IDS.indexOf('GY')]).toBe(1);
   });
 
-  it('frees both streams', () => {
+  it('frees every stream', () => {
     expect(reroute(afterHit).streams).toEqual([]);
   });
 
@@ -124,24 +165,24 @@ describe('rerouting', () => {
 });
 
 describe('missed rolls', () => {
-  const server = makeServer({ BB: [8, 3] }, ['blackIce']);
-  const bbIndex = FILE_IDS.indexOf('BB');
+  const server = makeServer({ BG: [8, 3] }, ['blackIce']);
+  const bgIndex = FILE_IDS.indexOf('BG');
   const missedRun: RunState = {
     ...startRun(server, false, rng()),
-    buffer: FILE_IDS.map((id) => (id === 'BB' ? 5 : 0)),
+    buffer: FILE_IDS.map((id) => (id === 'BG' ? 5 : 0)),
     status: 'missed',
   };
 
   it('loses the whole unbanked download on a flatline', () => {
-    expect(flatline(missedRun, rng()).buffer[bbIndex]).toBe(0);
+    expect(flatline(missedRun, rng()).buffer[bgIndex]).toBe(0);
   });
 
   it('keeps half the unbanked download with Failsafe', () => {
-    expect(flatlineWithFailsafe(missedRun, rng()).buffer[bbIndex]).toBe(2);
+    expect(flatlineWithFailsafe(missedRun, rng()).buffer[bgIndex]).toBe(2);
   });
 
   it('lets Black ICE burn a banked block when you flatline', () => {
-    expect(serverAfterRun(server, flatline(missedRun, rng())).files[bbIndex].banked).toBe(2);
+    expect(serverAfterRun(server, flatline(missedRun, rng())).files[bgIndex].banked).toBe(2);
   });
 });
 
@@ -152,13 +193,13 @@ describe('server alert', () => {
   });
 
   it('purges unfinished files once it fills', () => {
-    const server = { ...makeServer({ BB: [8, 5] }, [], 3), alert: 2 };
+    const server = { ...makeServer({ BG: [8, 5] }, [], 3), alert: 2 };
     const after = serverAfterRun(server, jackOut(startRun(server, false, rng())));
-    expect([after.files[FILE_IDS.indexOf('BB')].banked, after.alert]).toEqual([0, 0]);
+    expect([after.files[FILE_IDS.indexOf('BG')].banked, after.alert]).toEqual([0, 0]);
   });
 
   it('leaves finished files alone in a purge, since they are already sold', () => {
-    const server = { ...makeServer({ RR: [3, 3] }, [], 3), alert: 2 };
+    const server = { ...makeServer({ RB: [3, 3] }, [], 3), alert: 2 };
     expect(serverAfterRun(server, jackOut(startRun(server, false, rng()))).files[0].banked).toBe(3);
   });
 });

@@ -1,50 +1,37 @@
+import mothPortrait from '../assets/moth.svg?raw';
+import vesnaPortrait from '../assets/vesna.svg?raw';
 import { el, prefersReducedMotion } from './dom';
-import { type PointCloudData, type PointCloudLook, type PointCloudView, createPointCloudView } from './pointCloud';
 
-/** Someone on the other end of an encrypted line: a live point-cloud face and lines that type out. */
+/** Someone on the other end of an encrypted line: a lit silhouette and lines that type out. */
 export interface Caller {
   readonly name: string;
   readonly channel: string;
   readonly tone: 'vesna' | 'moth';
-  readonly look: PointCloudLook;
-  /** CSS pixels of the canvas the face is drawn in. */
-  readonly faceSize: { readonly width: number; readonly height: number };
-  readonly loadFace: () => Promise<PointCloudData>;
+  /** SVG markup for the caller's silhouette; characters.css animates its classed parts. */
+  readonly portrait: string;
 }
 
 const TYPE_MILLISECONDS_PER_CHARACTER = 22;
 const PAUSE_BETWEEN_LINES = 320;
 
-export const VESNA: Caller = {
-  name: 'Vesna',
-  channel: 'Encrypted link',
-  tone: 'vesna',
-  look: { rgb: '110, 214, 255', zoom: 0.46, sway: 0.2 },
-  faceSize: { width: 250, height: 300 },
-  loadFace: () => import('../assets/vesna.json').then((module) => module.default),
-};
+export const VESNA: Caller = { name: 'Vesna', channel: 'Encrypted link', tone: 'vesna', portrait: vesnaPortrait };
 
-export const MOTH: Caller = {
-  name: 'Moth',
-  channel: 'Back room',
-  tone: 'moth',
-  look: { rgb: '255, 182, 72', zoom: 0.36, sway: 0.35 },
-  faceSize: { width: 190, height: 130 },
-  loadFace: () => import('../assets/moth.json').then((module) => module.default),
-};
+export const MOTH: Caller = { name: 'Moth', channel: 'Back room', tone: 'moth', portrait: mothPortrait };
 
-function mountFace(caller: Caller, slot: HTMLElement): Promise<PointCloudView | null> {
-  return caller.loadFace().then(
-    (data) => {
-      const view = createPointCloudView(data, caller.look, caller.faceSize);
-      slot.replaceChildren(view.element);
-      return view;
-    },
-    (error: unknown) => {
-      console.error(`Could not load ${caller.name}'s face`, error);
-      return null;
-    },
-  );
+function renderPortrait(caller: Caller): HTMLElement {
+  const frame = el('div', { className: 'call-portrait', attrs: { 'aria-hidden': 'true' } });
+  // The markup is our own bundled artwork, never user input, so inserting it as HTML is safe.
+  frame.innerHTML = caller.portrait;
+  return frame;
+}
+
+/** Tears the picture once, for bad news. */
+function glitchOnce(portrait: HTMLElement): void {
+  portrait.classList.add('is-glitching');
+  portrait.addEventListener('animationend', (event) => {
+    // The portrait's own parts animate too; only the frame's glitch ending counts.
+    if (event.target === portrait) portrait.classList.remove('is-glitching');
+  });
 }
 
 /** Types each line in turn; a click anywhere on the panel finishes them at once. */
@@ -92,13 +79,14 @@ function typeLines(lines: readonly string[], target: HTMLElement, onTalking: (is
 export interface CallOptions {
   readonly lines: readonly string[];
   readonly actions: readonly HTMLElement[];
-  /** Tears the face on arrival, for bad news. */
+  /** Glitches the picture on arrival, for bad news. */
   readonly isHostile?: boolean;
   readonly className?: string;
 }
 
 export function renderCall(caller: Caller, options: CallOptions): HTMLElement {
-  const faceSlot = el('div', { className: 'call-face' }, [el('div', { className: 'call-face-loading', text: 'Resolving…' })]);
+  const portrait = renderPortrait(caller);
+  if (options.isHostile) glitchOnce(portrait);
   const transcript = el('div', { className: 'call-transcript', attrs: { 'aria-live': 'polite' } });
   const panel = el('section', { className: `call call-${caller.tone} ${options.className ?? ''}`, attrs: { 'aria-label': `${caller.name} on the line` } }, [
     el('header', { className: 'call-head' }, [
@@ -106,24 +94,13 @@ export function renderCall(caller: Caller, options: CallOptions): HTMLElement {
       el('span', { className: 'call-channel', text: `${caller.channel} // ${caller.name}` }),
     ]),
     el('div', { className: 'call-body' }, [
-      faceSlot,
+      el('div', { className: 'call-face' }, [portrait]),
       el('div', { className: 'call-words' }, [transcript, el('div', { className: 'call-actions' }, options.actions)]),
     ]),
   ]);
-  let face: PointCloudView | null = null;
-  let isTalking = false;
-  const setTalking = (talking: boolean) => {
-    isTalking = talking;
-    face?.setTalking(talking);
-  };
-  const finishTyping = typeLines(options.lines, transcript, setTalking);
+  const finishTyping = typeLines(options.lines, transcript, (isTalking) => panel.classList.toggle('is-talking', isTalking));
   panel.addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLButtonElement)) finishTyping();
-  });
-  void mountFace(caller, faceSlot).then((view) => {
-    face = view;
-    view?.setTalking(isTalking);
-    if (options.isHostile) view?.glitch();
   });
   return panel;
 }

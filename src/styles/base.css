@@ -15,6 +15,7 @@
   --red: #ff3d6e;
   --blue: #3fa7ff;
   --green: #39f0a0;
+  --yellow: #ffe94a;
   --wild: #f4eeff;
   --firewall: #9fe8ff;
   --vesna: #6ed6ff;
@@ -100,18 +101,12 @@ strong {
 .face-green {
   --tone: var(--green);
 }
+.tone-yellow,
+.face-yellow {
+  --tone: var(--yellow);
+}
 .face-wild {
   --tone: var(--wild);
-}
-/* A dual face glows the mix of its two colors. */
-.face-red-blue {
-  --tone: color-mix(in srgb, var(--red) 50%, var(--blue));
-}
-.face-red-green {
-  --tone: color-mix(in srgb, var(--red) 50%, var(--green));
-}
-.face-blue-green {
-  --tone: color-mix(in srgb, var(--blue) 50%, var(--green));
 }
 .face-firewall {
   --tone: var(--firewall);
@@ -138,6 +133,9 @@ strong {
 }
 .glyph-green {
   fill: var(--green);
+}
+.glyph-yellow {
+  fill: var(--yellow);
 }
 .glyph-wild {
   fill: var(--wild);

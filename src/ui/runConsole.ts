@@ -1,6 +1,7 @@
 import { MINUTES_PER_ROLL, REROUTE_MINUTES } from '../game/clock';
 import { MAX_STREAMS } from '../game/pairing';
 import { PROGRAMS, type ProgramId } from '../game/programs';
+import { isJackpotRoll } from '../game/roll';
 import { type RunState, blocksAtRisk } from '../game/run';
 import { el, money, percent } from './dom';
 import { fileGlyph, fileToneClass } from './faceStyle';
@@ -10,8 +11,8 @@ export interface RunConsoleProps {
   /** Chance the next roll isn't a miss. */
   readonly safeChance: number;
   readonly isLocked: boolean;
-  /** The split picker, shown while the player chooses how to pair the dice. */
-  readonly splitPicker: HTMLElement | null;
+  /** The split picker, or the jackpot's file picker, shown while the player chooses. */
+  readonly choicePicker: HTMLElement | null;
   readonly canBounce: boolean;
   readonly canFailsafe: boolean;
   readonly canReroute: boolean;
@@ -32,9 +33,10 @@ function blocks(count: number): string {
 
 function narration(run: RunState): string {
   if (run.status === 'missed') return 'Trace locked on. No pair fits a stream. Run a program now, or take the hit.';
-  if (run.status === 'choosing') return 'Pair up the dice. Each pair downloads a block of its file.';
+  if (run.status === 'choosing' && run.lastRoll !== null && isJackpotRoll(run.lastRoll)) return 'Four of a kind. No pair works, but the jackpot drops a block wherever you want it.';
+  if (run.status === 'choosing') return 'Pair up the dice. Each pair of two different colors downloads a block of its file.';
   if (run.status === 'hit') return `Pulling data. ${blocks(blocksAtRisk(run))} at risk. A miss now loses all of it.`;
-  if (run.reroutes > 0) return 'Rerouted. Your download is banked and both streams are free again.';
+  if (run.reroutes > 0) return 'Rerouted. Your download is banked and every stream is free again.';
   return `The handshake took ${run.handshakeMinutes} minutes. You’re in. With every file open, your first roll can’t miss.`;
 }
 
@@ -75,7 +77,7 @@ function renderRerouteButton(props: RunConsoleProps): HTMLElement | null {
   if (!props.canReroute) return null;
   return el('button', {
     className: 'btn btn-reroute',
-    attrs: { type: 'button', title: props.canAffordReroute ? 'Bank the download without leaving. Both streams come free.' : `You need ${money(props.reroutePrice)} to reroute.` },
+    attrs: { type: 'button', title: props.canAffordReroute ? 'Bank the download without leaving. Every stream comes free.' : `You need ${money(props.reroutePrice)} to reroute.` },
     onClick: props.onReroute,
     isDisabled: props.isLocked || !props.canAffordReroute,
   }, [
@@ -108,11 +110,12 @@ function renderOdds(chance: number): HTMLElement {
 
 function renderActions(props: RunConsoleProps): HTMLElement | null {
   if (props.run.status === 'missed') return renderMissChoices(props);
-  if (props.run.status === 'choosing') return props.splitPicker;
+  if (props.run.status === 'choosing') return props.choicePicker;
   return renderRollChoices(props);
 }
 
 function keyHint(run: RunState): string {
+  if (run.status === 'choosing' && run.lastRoll !== null && isJackpotRoll(run.lastRoll)) return 'Number keys pick a file for the jackpot.';
   if (run.status === 'choosing') return '1, 2, 3 pick a split. A or B picks a pair when only one stream is free.';
   return 'Space rolls. J jacks out. R reroutes.';
 }

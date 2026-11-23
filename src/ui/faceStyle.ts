@@ -6,6 +6,7 @@ export const COLOR_LABEL: Record<Color, string> = {
   red: 'Red',
   blue: 'Blue',
   green: 'Green',
+  yellow: 'Yellow',
 };
 
 /** Each color also has a shape, so the game reads without relying on color vision. */
@@ -13,6 +14,7 @@ const SHAPE_MARKUP: Record<Color, string> = {
   red: '<polygon points="50,14 88,82 12,82" />',
   blue: '<rect x="18" y="18" width="64" height="64" rx="4" />',
   green: '<circle cx="50" cy="50" r="34" />',
+  yellow: '<polygon points="50,10 72,34 92,50 72,66 50,90 28,66 8,50 28,34" />',
 };
 
 export function glyph(color: Color, className = 'glyph'): SVGSVGElement {

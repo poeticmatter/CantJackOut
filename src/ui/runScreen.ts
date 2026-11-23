@@ -1,10 +1,10 @@
-import { acceptFlatline, bankAndJackOut, reroutePrice, rerouteRun, roll, takeSplit, useBounce, useFailsafe } from '../game/actions';
+import { acceptFlatline, bankAndJackOut, reroutePrice, rerouteRun, roll, takeChoice, useBounce, useFailsafe } from '../game/actions';
 import { type CampaignState, type RunReport, findServer, isProgramReady } from '../game/campaign';
 import { formatClock } from '../game/clock';
 import { FACES_PER_DIE } from '../game/dice';
 import { FILE_COLORS, type FileId, fileIndex } from '../game/files';
 import { survivalChance } from '../game/pairing';
-import type { RollRecord, SplitChoice } from '../game/roll';
+import { type RollChoice, type RollRecord, isJackpotRoll } from '../game/roll';
 import { canReroute, runMinutes, streamContext } from '../game/run';
 import { sfx } from './audio';
 import { type DieView, createDieView } from './dice3d';
@@ -13,13 +13,16 @@ import { createFxLayer, shake } from './fx';
 import { playHandshake } from './handshake';
 import { renderRunConsole } from './runConsole';
 import { type RunFrame, autoResolveMiss, filesFor, frameFor } from './runFrame';
+import { choiceKeyAction } from './runKeys';
 import { renderRunResult } from './runResult';
-import { CHOICE_KEYS, SPLIT_KEYS, renderSplitPicker } from './splitPicker';
+import { renderJackpotPicker, renderSplitPicker } from './splitPicker';
 import type { Store } from './store';
 import { renderAlertMeter, renderTower } from './towers';
 
 const BIG_ROLL_BLOCKS = 3;
-const PARTICLES_PER_BLOCK = 6;
+const PARTICLES_PER_DIE = 4;
+const JACKPOT_PARTICLES_PER_DIE = 10;
+const JACKPOT_FLASH_MILLISECONDS = 1100;
 
 export interface RunScreen {
   readonly element: HTMLElement;
@@ -28,19 +31,21 @@ export interface RunScreen {
   update(state: CampaignState): void;
 }
 
-function fileTone(file: FileId): string {
-  return `var(--file-${file})`;
+function colorVar(color: string): string {
+  return `var(--${color})`;
 }
 
-/** Which of a split's two pairs actually downloaded, given the choice the player took. */
-function appliedPairs(rollRecord: RollRecord, choice: SplitChoice): boolean[] {
+/** Which dice fed which file: each usable pair of a split, or all four dice for a jackpot. */
+function diceFlights(rollRecord: RollRecord, choice: RollChoice): { readonly dice: readonly number[]; readonly file: FileId | null }[] {
+  if (choice.kind === 'jackpot') return [{ dice: [0, 1, 2, 3], file: choice.file }];
   const option = rollRecord.options[choice.splitIndex];
   const remaining = [...option.choices[choice.choiceIndex]];
-  return option.files.map((file) => {
-    const at = remaining.indexOf(file);
-    if (at === -1) return false;
+  return option.dicePairs.map((pair, pairIndex) => {
+    const file = option.files[pairIndex];
+    const at = file === null ? -1 : remaining.indexOf(file);
+    if (at === -1) return { dice: pair, file: null };
     remaining.splice(at, 1);
-    return true;
+    return { dice: pair, file };
   });
 }
 
@@ -58,7 +63,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
 
   let diceViews: DieView[] = [];
   let displayedFaces: readonly number[] | null = null;
-  let displayedChoice: SplitChoice | null = null;
+  let displayedChoice: RollChoice | null = null;
   let displayedFilled: number[] = [];
   let displayedBanked: number[] = [];
   let pendingSplit: number | null = null;
@@ -75,14 +80,15 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     store.apply((state) => autoResolveMiss(transition(state)));
   };
 
-  const choose = (splitIndex: number, choiceIndex: number) => act((state) => takeSplit(state, splitIndex, choiceIndex));
+  const choose = (choice: RollChoice) => act((state) => takeChoice(state, choice));
 
-  const previewFiles = (files: readonly FileId[] | null) => {
+  const markTowers = (className: string, files: readonly FileId[] | null) => {
     for (const tower of towers.children) {
       const file = tower.getAttribute('data-file');
-      tower.classList.toggle('is-preview', files !== null && files.some((candidate) => candidate === file));
+      tower.classList.toggle(className, files !== null && files.some((candidate) => candidate === file));
     }
   };
+  const previewFiles = (files: readonly FileId[] | null) => markTowers('is-preview', files);
 
   const buildDice = (frame: RunFrame) => {
     diceViews = frame.dice.map(createDieView);
@@ -105,6 +111,9 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     );
     displayedFilled = files.map((file) => file.banked + file.buffered);
     displayedBanked = files.map((file) => file.banked);
+    const lastRoll = frame.run.lastRoll;
+    const isPickingJackpot = frame.report === null && frame.run.status === 'choosing' && lastRoll !== null && isJackpotRoll(lastRoll);
+    markTowers('is-jackpot-target', isPickingJackpot ? lastRoll.jackpotFiles : null);
   };
 
   const renderHeader = (frame: RunFrame) => {
@@ -121,21 +130,29 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     );
   };
 
+  const renderChoicePicker = (frame: RunFrame, isLocked: boolean): HTMLElement | null => {
+    const lastRoll = frame.run.lastRoll;
+    if (frame.run.status !== 'choosing' || lastRoll === null) return null;
+    const context = streamContext(frame.run, frame.server);
+    if (isJackpotRoll(lastRoll)) {
+      return renderJackpotPicker({ roll: lastRoll, context, isLocked, onPreview: previewFiles, onPick: (file) => choose({ kind: 'jackpot', file }) });
+    }
+    return renderSplitPicker({
+      roll: lastRoll, context, isLocked, pendingSplit, onPreview: previewFiles,
+      onChoose: (splitIndex, choiceIndex) => choose({ kind: 'split', splitIndex, choiceIndex }),
+    });
+  };
+
   const renderConsole = (frame: RunFrame) => {
     const state = latestState;
     const price = reroutePrice(frame.server);
-    const context = streamContext(frame.run, frame.server);
     const isLocked = isAnimating || frame.report !== null;
-    const lastRoll = frame.run.lastRoll;
-    const splitPicker = frame.run.status === 'choosing' && lastRoll !== null
-      ? renderSplitPicker({ roll: lastRoll, context, isLocked, pendingSplit, onChoose: choose, onPreview: previewFiles })
-      : null;
     consoleSlot.replaceChildren(
       renderRunConsole({
         run: frame.run,
-        safeChance: survivalChance(frame.dice, context),
+        safeChance: survivalChance(frame.dice, streamContext(frame.run, frame.server)),
         isLocked,
-        splitPicker,
+        choicePicker: renderChoicePicker(frame, isLocked),
         canBounce: isProgramReady(state, 'bounce'),
         canFailsafe: isProgramReady(state, 'failsafe'),
         canReroute: canReroute(frame.run),
@@ -172,6 +189,11 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     return cells[fromTop]?.getBoundingClientRect() ?? shaft.getBoundingClientRect();
   };
 
+  /** A finished file bursts in both of its colors. */
+  const burstFile = (tower: Element, file: FileId, count: number) => {
+    FILE_COLORS[file].forEach((color) => fx.burst(tower, colorVar(color), count / 2));
+  };
+
   const celebrateGains = (frame: RunFrame, before: readonly number[]) => {
     renderTowers(frame);
     const gained = displayedFilled.map((filled, index) => filled - (before[index] ?? filled));
@@ -180,43 +202,62 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
       if (blocks <= 0 || tower === undefined) return;
       const file = frame.server.files[index];
       tower.classList.add('is-gaining');
-      fx.floatText(tower.querySelector('.tower-shaft') ?? tower, `+${blocks}`, `tone-${FILE_COLORS[file.id][1]}`);
-      const isNewlyFull = displayedFilled[index] >= file.length && (before[index] ?? 0) < file.length;
-      if (isNewlyFull) {
+      fx.floatText(tower.querySelector('.tower-shaft') ?? tower, `+${blocks}`, 'is-gain');
+      if (displayedFilled[index] >= file.length && (before[index] ?? 0) < file.length) {
         tower.classList.add('is-cracking');
-        fx.burst(tower, fileTone(file.id), 28);
+        burstFile(tower, file.id, 28);
         sfx.fileCracked(FILE_COLORS[file.id][1]);
       }
     });
     if (gained.reduce((sum, blocks) => sum + Math.max(0, blocks), 0) >= BIG_ROLL_BLOCKS) shake(stage, 1.6);
   };
 
+  /** Four of a kind: the dice flare, the screen flashes and the banner drops in. */
+  const celebrateJackpot = async (rollRecord: RollRecord) => {
+    const color = colorVar(rollRecord.colors[0]);
+    sfx.jackpot();
+    element.classList.add('is-jackpot-roll');
+    diceViews.forEach((view) => {
+      view.setMood('special', color);
+      fx.burst(view.element, color, 18);
+    });
+    fx.floatText(tray, 'JACKPOT', 'is-jackpot');
+    fx.rain('★', 'var(--yellow)', 24);
+    shake(element, 2);
+    await wait(JACKPOT_FLASH_MILLISECONDS);
+    element.classList.remove('is-jackpot-roll');
+  };
+
   const animateRoll = async (frame: RunFrame, rollRecord: RollRecord) => {
     sfx.rattle(diceViews.length);
     diceViews.forEach((view) => view.setMood('idle'));
     await Promise.all(rollRecord.faceIndexes.map((faceIndex, index) => diceViews[index]?.rollTo(faceIndex) ?? Promise.resolve()));
-    if (frame.run.status === 'missed' || (frame.report !== null && rollRecord.chosen === null)) {
+    if (isJackpotRoll(rollRecord)) {
+      await celebrateJackpot(rollRecord);
+    } else if (frame.run.status === 'missed' || (frame.report !== null && rollRecord.chosen === null)) {
       diceViews.forEach((view) => view.setMood('dud'));
       sfx.probeMiss();
     }
   };
 
-  const animateChoice = async (frame: RunFrame, rollRecord: RollRecord, choice: SplitChoice) => {
-    const option = rollRecord.options[choice.splitIndex];
-    const applied = appliedPairs(rollRecord, choice);
+  /** Blocks fly from each die that scored, in that die's own color, to its file's tower. */
+  const animateChoice = async (frame: RunFrame, rollRecord: RollRecord, choice: RollChoice) => {
     const before = [...displayedFilled];
-    const flights = option.dicePairs.map((pair, pairIndex) => {
-      const file = option.files[pairIndex];
-      const views = pair.map((dieIndex) => diceViews[dieIndex]).filter((view): view is DieView => view !== undefined);
-      if (!applied[pairIndex]) {
-        views.forEach((view) => view.setMood('dud'));
-        return Promise.resolve();
+    const particles = choice.kind === 'jackpot' ? JACKPOT_PARTICLES_PER_DIE : PARTICLES_PER_DIE;
+    const flights = diceFlights(rollRecord, choice).flatMap(({ dice, file }, pairIndex) => {
+      const views = dice.map((dieIndex) => diceViews[dieIndex]);
+      if (file === null) {
+        views.forEach((view) => view?.setMood('dud'));
+        return [];
       }
-      views.forEach((view) => view.setMood('hit', fileTone(file)));
       sfx.hit(FILE_COLORS[file][1], pairIndex);
       const landing = landingFor(fileIndex(file));
-      const source = views[0];
-      return landing === null || source === undefined ? Promise.resolve() : fx.flyBlocks(source.element, landing, fileTone(file), PARTICLES_PER_BLOCK);
+      return dice.map((dieIndex) => {
+        const view = diceViews[dieIndex];
+        const color = colorVar(rollRecord.colors[dieIndex]);
+        view?.setMood('hit', color);
+        return landing === null || view === undefined ? Promise.resolve() : fx.flyBlocks(view.element, landing, color, particles);
+      });
     });
     await Promise.all(flights);
     celebrateGains(frame, before);
@@ -233,7 +274,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
       element.classList.add('is-downloaded', 'is-jackpot');
       report.filesSold.forEach((file) => {
         const tower = towers.children[fileIndex(file)];
-        if (tower !== undefined) fx.burst(tower, fileTone(file), 40);
+        if (tower !== undefined) burstFile(tower, file, 40);
       });
       fx.rain('$', 'var(--amber)', 12 + 12 * report.filesSold.length);
       shake(element, 2.4);
@@ -327,21 +368,12 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     if (frame !== null && frame.report === null) renderConsole(frame);
   };
 
-  /** 1, 2, 3 take a split; a split that can only take one of its pairs waits for A or B. */
-  const handleSplitKey = (event: KeyboardEvent, rollRecord: RollRecord) => {
-    const splitIndex = SPLIT_KEYS.findIndex((key) => event.key === key);
-    const choiceIndex = CHOICE_KEYS.findIndex((key) => event.key.toUpperCase() === key);
-    if (splitIndex !== -1) {
-      const option = rollRecord.options[splitIndex];
-      if (option.choices.length === 1) choose(splitIndex, 0);
-      else if (option.choices.length > 1) {
-        pendingSplit = splitIndex;
-        rerenderConsole();
-      }
-    } else if (choiceIndex !== -1 && pendingSplit !== null) {
-      choose(pendingSplit, choiceIndex);
-    } else if (event.key === 'Escape' && pendingSplit !== null) {
-      pendingSplit = null;
+  const handleChoiceKey = (key: string, rollRecord: RollRecord) => {
+    const action = choiceKeyAction(key, rollRecord, pendingSplit);
+    if (action.kind === 'split') choose({ kind: 'split', splitIndex: action.splitIndex, choiceIndex: action.choiceIndex });
+    else if (action.kind === 'jackpot') choose({ kind: 'jackpot', file: rollRecord.jackpotFiles[action.fileIndex] });
+    else if (action.kind === 'pend' || action.kind === 'cancel') {
+      pendingSplit = action.kind === 'pend' ? action.splitIndex : null;
       rerenderConsole();
     }
   };
@@ -350,7 +382,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     if (!element.isConnected || isAnimating || latestState.run === null || event.repeat) return;
     const run = latestState.run;
     if (run.status === 'choosing' && run.lastRoll !== null) {
-      handleSplitKey(event, run.lastRoll);
+      handleChoiceKey(event.key, run.lastRoll);
       return;
     }
     const isRollable = run.status === 'connected' || run.status === 'hit';

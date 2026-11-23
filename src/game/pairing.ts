@@ -1,8 +1,8 @@
 import { COLORS, type Color, type Die, colorOdds } from './dice';
-import { type FileId, fileForPair } from './files';
+import { FILE_IDS, type FileId, fileForPair } from './files';
 
 /** Like Can't Stop's runners: the files one run can work on. */
-export const MAX_STREAMS = 2;
+export const MAX_STREAMS = 3;
 export const DICE_PER_ROLL = 4;
 
 type DiePair = readonly [number, number];
@@ -23,7 +23,8 @@ export interface StreamContext {
 export interface SplitOption {
   /** Die indexes in each pair, in the same order as files. */
   readonly dicePairs: readonly [DiePair, DiePair];
-  readonly files: readonly [FileId, FileId];
+  /** The file each pair matches, or null for two dice of the same color. */
+  readonly files: readonly [FileId | null, FileId | null];
   /**
    * The ways this split can be applied: usually one, none if neither pair is usable, and two
    * when both pairs are usable alone but together would need more streams than the run has.
@@ -32,9 +33,10 @@ export interface SplitOption {
   readonly choices: readonly (readonly FileId[])[];
 }
 
-function canTakePair(file: FileId, streams: readonly FileId[], context: StreamContext): boolean {
+/** Whether the run could put a block in this file now: it's an open stream or a stream is free. */
+export function canTakeBlock(file: FileId, context: StreamContext): boolean {
   if (context.fullFiles.includes(file)) return false;
-  return streams.includes(file) || streams.length < MAX_STREAMS;
+  return context.streams.includes(file) || context.streams.length < MAX_STREAMS;
 }
 
 export function streamsAfter(streams: readonly FileId[], files: readonly FileId[]): FileId[] {
@@ -46,16 +48,11 @@ export function newStreams(streams: readonly FileId[], files: readonly FileId[])
   return streamsAfter(streams, files).filter((file) => !streams.includes(file));
 }
 
-export function choicesForPairs(first: FileId, second: FileId, context: StreamContext): FileId[][] {
-  const isFirstUsable = canTakePair(first, context.streams, context);
-  const isSecondUsable = canTakePair(second, context.streams, context);
-  if (isFirstUsable && isSecondUsable) {
-    const isBothAllowed = streamsAfter(context.streams, [first, second]).length <= MAX_STREAMS;
-    return isBothAllowed ? [[first, second]] : [[first], [second]];
-  }
-  if (isFirstUsable) return [[first]];
-  if (isSecondUsable) return [[second]];
-  return [];
+export function choicesForPairs(first: FileId | null, second: FileId | null, context: StreamContext): FileId[][] {
+  const usable = [first, second].filter((file): file is FileId => file !== null && canTakeBlock(file, context));
+  if (usable.length < 2) return usable.map((file) => [file]);
+  const isBothAllowed = streamsAfter(context.streams, usable).length <= MAX_STREAMS;
+  return isBothAllowed ? [usable] : usable.map((file) => [file]);
 }
 
 export function splitOptions(colors: readonly Color[], context: StreamContext): SplitOption[] {
@@ -67,8 +64,18 @@ export function splitOptions(colors: readonly Color[], context: StreamContext): 
   });
 }
 
-export function isMiss(options: readonly SplitOption[]): boolean {
-  return options.every((option) => option.choices.length === 0);
+/** All four dice the same color: no pair works, but the player may put a block in any file they could reach. */
+export function isJackpot(colors: readonly Color[]): boolean {
+  return colors.every((color) => color === colors[0]);
+}
+
+/** The files a jackpot can feed: open streams that aren't full, and any other file if a stream is free. */
+export function jackpotFiles(colors: readonly Color[], context: StreamContext): FileId[] {
+  return isJackpot(colors) ? FILE_IDS.filter((file) => canTakeBlock(file, context)) : [];
+}
+
+export function isMiss(options: readonly SplitOption[], jackpot: readonly FileId[]): boolean {
+  return jackpot.length === 0 && options.every((option) => option.choices.length === 0);
 }
 
 /** Calls visit once for every color each die could show, with that outcome's exact chance. */
@@ -93,13 +100,20 @@ function exactChance(dice: readonly Die[], isWanted: (colors: Color[]) => boolea
   return total;
 }
 
-/** Exact chance the next roll isn't a miss. */
+/** Exact chance the next roll isn't a miss, counting jackpots. */
 export function survivalChance(dice: readonly Die[], context: StreamContext): number {
-  return exactChance(dice, (colors) => !isMiss(splitOptions(colors, context)));
+  return exactChance(dice, (colors) => !isMiss(splitOptions(colors, context), jackpotFiles(colors, context)));
 }
 
-/** Exact chance at least one split of a roll offers a pair for any of these files. */
+/** Exact chance at least one split of a roll has a pair for any of these files. Jackpots not counted. */
 export function chanceAnyPairFor(dice: readonly Die[], files: readonly FileId[]): number {
   return exactChance(dice, (colors) =>
-    SPLIT_PATTERNS.some((pattern) => pattern.some(([a, b]) => files.includes(fileForPair(colors[a], colors[b])))));
+    SPLIT_PATTERNS.some((pattern) => pattern.some(([a, b]) => {
+      const file = fileForPair(colors[a], colors[b]);
+      return file !== null && files.includes(file);
+    })));
+}
+
+export function jackpotChance(dice: readonly Die[]): number {
+  return exactChance(dice, isJackpot);
 }
