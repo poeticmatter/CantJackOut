@@ -1,28 +1,30 @@
 import { MINUTES_PER_ROLL, REROUTE_MINUTES, TRACER_EXTRA_MINUTES, rollDumpshockMinutes, rollHandshakeMinutes } from './clock';
 import type { Die } from './dice';
+import { FILE_IDS, type FileId, fileIndex } from './files';
+import { type StreamContext, streamsAfter } from './pairing';
 import type { Rng } from './random';
-import { type DieResult, type RollOutcome, resolveRoll, rollDice } from './roll';
+import { type RollRecord, isMissedRoll, rollDice } from './roll';
 import {
-  ALERT_PER_FLATLINE, ALERT_PER_VISIT, type Buffer, type Server, burnBankedStep, hasModifier, isAlertFull,
-  isFullyDownloaded, purgeServer, raiseAlert, withBanked,
+  ALERT_PER_FLATLINE, ALERT_PER_VISIT, type Buffer, type Server, burnBankedStep, emptyBuffer, fullFiles, hasModifier,
+  isAlertFull, purgeServer, raiseAlert, remainingSteps, withBanked,
 } from './server';
 
 /**
- * connected: jacked in (or just rerouted), ready to roll. hit: last roll scored. blocked: last roll
- * missed but a Firewall face stopped it. missed: last roll scored nothing and the player may still
- * run a rescue program. over: the run has ended.
+ * connected: jacked in (or just rerouted), ready to roll. choosing: the dice are down and the
+ * player picks a split. hit: the split is applied. missed: no split was usable and the player
+ * may still run a rescue program. over: the run has ended.
  */
-export type RunStatus = 'connected' | 'hit' | 'blocked' | 'missed' | 'over';
+export type RunStatus = 'connected' | 'choosing' | 'hit' | 'missed' | 'over';
 export type RunEnding = 'jackedOut' | 'flatlined' | 'downloaded';
 
 export interface RunState {
   readonly serverId: string;
-  /** Banked blocks per track as this run sees them: the stake is taken out, anchors and reroutes go in. */
+  /** Banked blocks per file as this run sees them: reroutes add to them. */
   readonly banked: Buffer;
   /** Blocks at risk: a miss loses all of them. */
   readonly buffer: Buffer;
-  /** The blocks put at risk when the run started or was last rerouted. */
-  readonly stake: Buffer;
+  /** Files this run is working on since it connected or last rerouted. */
+  readonly streams: readonly FileId[];
   readonly rolls: number;
   readonly reroutes: number;
   readonly handshakeMinutes: number;
@@ -30,30 +32,15 @@ export interface RunState {
   readonly isProxied: boolean;
   readonly status: RunStatus;
   readonly ending: RunEnding | null;
-  readonly lastRoll: RollOutcome | null;
-  readonly paydays: number;
-}
-
-/**
- * Every unfinished file starts a run with one block at risk: its last banked block, or a free one
- * from the handshake if nothing is banked. So even a run's first roll has something to lose.
- */
-export function placeStake(server: Server, banked: Buffer): { banked: Buffer; stake: Buffer } {
-  const tracks = server.tracks.map((track, index) => {
-    const isFinished = banked[index] >= track.length;
-    if (isFinished) return { banked: banked[index], stake: 0 };
-    return { banked: Math.max(0, banked[index] - 1), stake: 1 };
-  });
-  return { banked: tracks.map((track) => track.banked), stake: tracks.map((track) => track.stake) };
+  readonly lastRoll: RollRecord | null;
 }
 
 export function startRun(server: Server, isProxied: boolean, rng: Rng): RunState {
-  const { banked, stake } = placeStake(server, server.tracks.map((track) => track.banked));
   return {
     serverId: server.id,
-    banked,
-    buffer: stake,
-    stake,
+    banked: server.files.map((file) => file.banked),
+    buffer: emptyBuffer(),
+    streams: [],
     rolls: 0,
     reroutes: 0,
     handshakeMinutes: rollHandshakeMinutes(rng),
@@ -62,7 +49,6 @@ export function startRun(server: Server, isProxied: boolean, rng: Rng): RunState
     status: 'connected',
     ending: null,
     lastRoll: null,
-    paydays: 0,
   };
 }
 
@@ -71,16 +57,21 @@ export function liveServer(server: Server, run: RunState): Server {
   return withBanked(server, run.banked);
 }
 
+export function streamContext(run: RunState, server: Server): StreamContext {
+  return { streams: run.streams, fullFiles: fullFiles(liveServer(server, run), run.buffer) };
+}
+
 function addBuffers(a: Buffer, b: Buffer): Buffer {
   return a.map((steps, index) => steps + b[index]);
 }
 
-function total(buffer: Buffer): number {
-  return buffer.reduce((sum, steps) => sum + steps, 0);
+/** Blocks a miss would lose right now. */
+export function blocksAtRisk(run: RunState): number {
+  return run.buffer.reduce((sum, steps) => sum + steps, 0);
 }
 
 export function canRoll(run: RunState): boolean {
-  return run.status === 'connected' || run.status === 'hit' || run.status === 'blocked';
+  return run.status === 'connected' || run.status === 'hit';
 }
 
 export function rollRun(run: RunState, server: Server, dice: readonly Die[], rng: Rng): RunState {
@@ -95,56 +86,47 @@ export function bounceMiss(run: RunState, server: Server, dice: readonly Die[], 
 }
 
 function applyFreshRoll(run: RunState, server: Server, dice: readonly Die[], rng: Rng): RunState {
-  const outcome = resolveRoll(liveServer(server, run), run.buffer, dice, rollDice(dice, rng));
-  return applyOutcome({ ...run, rolls: run.rolls + 1 }, server, outcome);
+  const lastRoll = rollDice(dice, rng, streamContext(run, server));
+  return { ...run, rolls: run.rolls + 1, lastRoll, status: isMissedRoll(lastRoll) ? 'missed' : 'choosing' };
 }
 
-function applyOutcome(run: RunState, server: Server, outcome: RollOutcome): RunState {
+/** Takes one of the rolled splits: each usable pair downloads a block of its file. */
+export function chooseSplit(run: RunState, server: Server, splitIndex: number, choiceIndex: number): RunState {
+  if (run.status !== 'choosing' || run.lastRoll === null) throw new Error('There is no roll to split');
+  const choice = run.lastRoll.options[splitIndex]?.choices[choiceIndex];
+  if (choice === undefined) throw new Error('That split can’t download anything');
+  const live = liveServer(server, run);
+  const buffer = choice.reduce((next, file) => {
+    const index = fileIndex(file);
+    const room = remainingSteps(live.files[index], next[index]);
+    return next.map((steps, position) => (position === index ? steps + Math.min(1, room) : steps));
+  }, run.buffer);
   const next: RunState = {
     ...run,
-    banked: addBuffers(run.banked, outcome.anchored),
-    buffer: outcome.buffer,
-    lastRoll: outcome,
-    paydays: run.paydays + outcome.paydays,
+    buffer,
+    streams: streamsAfter(run.streams, choice),
+    lastRoll: { ...run.lastRoll, chosen: { splitIndex, choiceIndex } },
+    status: 'hit',
   };
-  if (outcome.isHit) return settleHit(next, server);
-  return { ...next, status: outcome.isBlocked ? 'blocked' : 'missed' };
-}
-
-function settleHit(run: RunState, server: Server): RunState {
-  if (isFullyDownloaded(liveServer(server, run), run.buffer)) return { ...run, status: 'over', ending: 'downloaded' };
-  return { ...run, status: 'hit' };
-}
-
-export function canSplice(run: RunState): boolean {
-  return run.status === 'hit' && run.lastRoll !== null && run.lastRoll.results.some((result) => result.gain === 0);
-}
-
-/** Splice: dice that scored nothing on the last hit are rerolled and may add progress. */
-export function spliceRoll(run: RunState, server: Server, dice: readonly Die[], rng: Rng): RunState {
-  if (!canSplice(run) || run.lastRoll === null) throw new Error('Splice needs a hit with idle dice');
-  const idleIds = new Set(run.lastRoll.results.filter((result) => result.gain === 0).map((result) => result.dieId));
-  const idleDice = dice.filter((die) => idleIds.has(die.id));
-  const spliced = resolveRoll(liveServer(server, run), run.buffer, idleDice, rollDice(idleDice, rng));
-  const replacement = new Map<string, DieResult>(spliced.results.map((result) => [result.dieId, result]));
-  const results = run.lastRoll.results.map((result) => replacement.get(result.dieId) ?? result);
-  return applyOutcome(run, server, { ...spliced, results, isHit: true, isBlocked: false });
-}
-
-/** Blocks downloaded since the stake was placed, which a reroute would secure. */
-export function downloadedSinceStake(run: RunState): number {
-  return total(run.buffer) - total(run.stake);
+  const isEverythingFull = fullFiles(live, buffer).length === FILE_IDS.length;
+  return isEverythingFull ? { ...next, status: 'over', ending: 'downloaded' } : next;
 }
 
 export function canReroute(run: RunState): boolean {
-  return (run.status === 'hit' || run.status === 'blocked') && downloadedSinceStake(run) > 0;
+  return run.status === 'hit' && blocksAtRisk(run) > 0;
 }
 
-/** Banks the download without leaving the server; a fresh stake goes at risk as if you'd just connected. */
-export function reroute(run: RunState, server: Server): RunState {
+/** Banks the download without leaving the server; the run's streams are free again. */
+export function reroute(run: RunState): RunState {
   if (!canReroute(run)) throw new Error('There is nothing new to reroute');
-  const { banked, stake } = placeStake(server, addBuffers(run.banked, run.buffer));
-  return { ...run, banked, buffer: stake, stake, reroutes: run.reroutes + 1, status: 'connected' };
+  return {
+    ...run,
+    banked: addBuffers(run.banked, run.buffer),
+    buffer: emptyBuffer(),
+    streams: [],
+    reroutes: run.reroutes + 1,
+    status: 'connected',
+  };
 }
 
 export function canJackOut(run: RunState): boolean {
@@ -158,7 +140,7 @@ export function jackOut(run: RunState): RunState {
 
 /** Accept the miss: the unbanked download is lost and dumpshock costs extra time. */
 export function flatline(run: RunState, rng: Rng): RunState {
-  return endMissedRun(run, run.buffer.map(() => 0), rng);
+  return endMissedRun(run, emptyBuffer(), rng);
 }
 
 /** Failsafe: like a flatline, but half of each file's unbanked progress survives. */

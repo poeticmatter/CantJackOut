@@ -1,32 +1,29 @@
 import { MINUTES_PER_ROLL, REROUTE_MINUTES } from '../game/clock';
+import { MAX_STREAMS } from '../game/pairing';
 import { PROGRAMS, type ProgramId } from '../game/programs';
-import { type RunState, downloadedSinceStake } from '../game/run';
+import { type RunState, blocksAtRisk } from '../game/run';
 import { el, money, percent } from './dom';
+import { fileGlyph, fileToneClass } from './faceStyle';
 
 export interface RunConsoleProps {
   readonly run: RunState;
-  /** Chance the next roll doesn't get you caught. */
+  /** Chance the next roll isn't a miss. */
   readonly safeChance: number;
   readonly isLocked: boolean;
-  readonly canSplice: boolean;
+  /** The split picker, shown while the player chooses how to pair the dice. */
+  readonly splitPicker: HTMLElement | null;
   readonly canBounce: boolean;
   readonly canFailsafe: boolean;
   readonly canReroute: boolean;
   readonly reroutePrice: number;
   readonly canAffordReroute: boolean;
-  readonly paydayCash: number;
   readonly charges: Readonly<Record<ProgramId, number>>;
   readonly onRoll: () => void;
   readonly onJackOut: () => void;
   readonly onReroute: () => void;
-  readonly onSplice: () => void;
   readonly onBounce: () => void;
   readonly onFailsafe: () => void;
   readonly onAcceptMiss: () => void;
-}
-
-function atRisk(run: RunState): number {
-  return run.buffer.reduce((sum, blocks) => sum + blocks, 0);
 }
 
 function blocks(count: number): string {
@@ -34,17 +31,29 @@ function blocks(count: number): string {
 }
 
 function narration(run: RunState): string {
-  if (run.status === 'missed') return 'Trace locked on. Nothing hit this time. Run a program now, or take the hit.';
-  if (run.status === 'blocked') return `Nothing hit, but your Firewall face ate the trace. ${blocks(atRisk(run))} still at risk.`;
-  if (run.status === 'hit') return `Pulling data. ${blocks(atRisk(run))} at risk. A miss now loses all of it.`;
-  if (run.reroutes > 0 && run.rolls > 0) return 'Rerouted. Your download is banked, and a fresh block of each file is back at risk.';
-  return `The handshake took ${run.handshakeMinutes} minutes. You’re in, with one block of each file at risk: miss your first roll and you lose it.`;
+  if (run.status === 'missed') return 'Trace locked on. No pair fits a stream. Run a program now, or take the hit.';
+  if (run.status === 'choosing') return 'Pair up the dice. Each pair downloads a block of its file.';
+  if (run.status === 'hit') return `Pulling data. ${blocks(blocksAtRisk(run))} at risk. A miss now loses all of it.`;
+  if (run.reroutes > 0) return 'Rerouted. Your download is banked and both streams are free again.';
+  return `The handshake took ${run.handshakeMinutes} minutes. You’re in. With every file open, your first roll can’t miss.`;
 }
 
 function riskTone(chance: number): string {
   if (chance >= 0.85) return 'is-safe';
   if (chance >= 0.6) return 'is-uneasy';
   return 'is-dangerous';
+}
+
+function renderStreams(run: RunState): HTMLElement {
+  const free = MAX_STREAMS - run.streams.length;
+  const slots = [
+    ...run.streams.map((file) => el('span', { className: `stream-slot is-open ${fileToneClass(file)}` }, [fileGlyph(file, 'stream-glyph'), el('span', { text: file })])),
+    ...Array.from({ length: free }, () => el('span', { className: 'stream-slot is-free', text: 'free' })),
+  ];
+  return el('div', { className: 'streams', attrs: { 'aria-label': `${free} of ${MAX_STREAMS} streams left this run` } }, [
+    el('span', { className: 'streams-label', text: `Streams: ${free} of ${MAX_STREAMS} left` }),
+    el('div', { className: 'stream-slots' }, slots),
+  ]);
 }
 
 function programButton(id: ProgramId, label: string, charges: number, onClick: () => void, isLocked: boolean): HTMLButtonElement {
@@ -64,14 +73,13 @@ function renderMissChoices(props: RunConsoleProps): HTMLElement {
 
 function renderRerouteButton(props: RunConsoleProps): HTMLElement | null {
   if (!props.canReroute) return null;
-  const secured = downloadedSinceStake(props.run);
   return el('button', {
     className: 'btn btn-reroute',
-    attrs: { type: 'button', title: props.canAffordReroute ? 'Bank the download without leaving. A fresh stake goes at risk.' : `You need ${money(props.reroutePrice)} to reroute.` },
+    attrs: { type: 'button', title: props.canAffordReroute ? 'Bank the download without leaving. Both streams come free.' : `You need ${money(props.reroutePrice)} to reroute.` },
     onClick: props.onReroute,
     isDisabled: props.isLocked || !props.canAffordReroute,
   }, [
-    el('span', { text: `Reroute: bank ${secured} and stay` }),
+    el('span', { text: `Reroute: bank ${blocksAtRisk(props.run)}, free the streams` }),
     el('small', { text: `${money(props.reroutePrice)} · +${REROUTE_MINUTES} min` }),
   ]);
 }
@@ -84,26 +92,38 @@ function renderRollChoices(props: RunConsoleProps): HTMLElement {
       el('small', { text: `+${MINUTES_PER_ROLL} min` }),
     ]),
     el('button', { className: 'btn btn-jack', attrs: { type: 'button' }, onClick: props.onJackOut, isDisabled: props.isLocked }, [
-      el('span', { text: `Jack out and bank ${atRisk(props.run)}` }),
+      el('span', { text: `Jack out and bank ${blocksAtRisk(props.run)}` }),
     ]),
     renderRerouteButton(props),
-    props.canSplice ? programButton('splice', 'Splice: reroll idle dice', props.charges.splice, props.onSplice, props.isLocked) : null,
   ]);
 }
 
+function renderOdds(chance: number): HTMLElement {
+  return el('div', { className: `odds ${riskTone(chance)}` }, [
+    el('span', { className: 'odds-label', text: 'Next roll is safe' }),
+    el('strong', { className: 'odds-value', text: percent(chance) }),
+    el('div', { className: 'odds-meter' }, [el('div', { className: 'odds-fill', style: { width: percent(chance) } })]),
+  ]);
+}
+
+function renderActions(props: RunConsoleProps): HTMLElement | null {
+  if (props.run.status === 'missed') return renderMissChoices(props);
+  if (props.run.status === 'choosing') return props.splitPicker;
+  return renderRollChoices(props);
+}
+
+function keyHint(run: RunState): string {
+  if (run.status === 'choosing') return '1, 2, 3 pick a split. A or B picks a pair when only one stream is free.';
+  return 'Space rolls. J jacks out. R reroutes.';
+}
+
 export function renderRunConsole(props: RunConsoleProps): HTMLElement {
-  const isMissed = props.run.status === 'missed';
+  const isRolling = props.run.status === 'connected' || props.run.status === 'hit';
   return el('div', { className: 'console' }, [
     el('p', { className: 'console-narration', text: narration(props.run) }),
-    isMissed
-      ? null
-      : el('div', { className: `odds ${riskTone(props.safeChance)}` }, [
-          el('span', { className: 'odds-label', text: 'Next roll is safe' }),
-          el('strong', { className: 'odds-value', text: percent(props.safeChance) }),
-          el('div', { className: 'odds-meter' }, [el('div', { className: 'odds-fill', style: { width: percent(props.safeChance) } })]),
-        ]),
-    isMissed ? renderMissChoices(props) : renderRollChoices(props),
-    props.paydayCash > 0 ? el('p', { className: 'console-payday', text: `Payday faces: ${money(props.paydayCash)} this run` }) : null,
-    el('p', { className: 'console-keys', text: 'Space rolls. J jacks out. R reroutes.' }),
+    renderStreams(props.run),
+    isRolling ? renderOdds(props.safeChance) : null,
+    renderActions(props),
+    el('p', { className: 'console-keys', text: keyHint(props.run) }),
   ]);
 }

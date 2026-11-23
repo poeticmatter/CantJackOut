@@ -1,7 +1,6 @@
-import { type CampaignState, isProgramReady, loadoutDice } from '../game/campaign';
-import { safeProbability } from '../game/dice';
-import { type Server, hasBankedProgress, openColors } from '../game/server';
-import { el, money, percent } from './dom';
+import { type CampaignState, isProgramReady } from '../game/campaign';
+import { type Server, hasBankedProgress, remainingValue } from '../game/server';
+import { el, money } from './dom';
 import { renderAlertMeter, renderFileBar } from './towers';
 
 const MODIFIER_TEXT = {
@@ -14,17 +13,14 @@ export interface ServerCardActions {
   readonly onScan: (serverId: string) => void;
 }
 
-function renderArchitecture(server: Server, state: CampaignState): HTMLElement {
-  const colors = openColors(server, server.tracks.map(() => 0));
-  const odds = safeProbability(loadoutDice(state), colors);
+function renderArchitecture(server: Server): HTMLElement {
   return el('div', { className: 'card-architecture' }, [
-    ...server.tracks.map(renderFileBar),
+    ...server.files.map(renderFileBar),
     server.modifiers.length > 0
       ? el('div', { className: 'card-mods' }, server.modifiers.map((modifier) =>
           el('span', { className: `chip chip-${modifier}`, text: MODIFIER_TEXT[modifier].name, attrs: { title: MODIFIER_TEXT[modifier].summary } })))
       : null,
     renderAlertMeter(server),
-    el('p', { className: 'card-odds', text: `Your deck hits ${percent(odds)} of rolls here` }),
   ]);
 }
 
@@ -47,16 +43,16 @@ export function renderServerCard(server: Server, state: CampaignState, actions: 
       el('h3', { className: 'card-node', text: server.name }),
     ]),
     el('div', { className: 'card-reward' }, [
-      el('strong', { text: money(server.reward) }),
-      el('span', { text: isInProgress ? 'when fully downloaded, in progress' : 'when fully downloaded' }),
+      el('strong', { text: money(remainingValue(server)) }),
+      el('span', { text: isInProgress ? 'left to sell, paid per file' : 'across six files, paid per file' }),
     ]),
-    server.isRevealed ? renderArchitecture(server, state) : renderUnknown(server, state, actions),
+    server.isRevealed ? renderArchitecture(server) : renderUnknown(server, state, actions),
     el('button', {
       className: 'btn btn-primary card-jack',
       text: 'Jack in',
       attrs: { type: 'button', 'aria-label': `Jack in to ${server.corp} ${server.name}` },
       onClick: () => actions.onJackIn(server.id),
-      isDisabled: state.phase !== 'net' || state.loadout.diceIds.length === 0,
+      isDisabled: state.phase !== 'net',
     }),
   ]);
 }

@@ -1,10 +1,7 @@
 import { deepScan, jackIn, waitForDawn } from '../game/actions';
 import type { CampaignState } from '../game/campaign';
 import { settleDawn } from '../game/dawn';
-import {
-  anchorFace, buyProgram, buyProgramSlot, buySocket, buySpareDie, flashFace, overclockFace, toggleDieInLoadout,
-  toggleProgramInLoadout,
-} from '../game/shop';
+import { buyProgram, buyProgramSlot, toggleProgramInLoadout } from '../game/shop';
 import { sfx, toggleMute } from './audio';
 import { VESNA, renderCall } from './characterCall';
 import { renderDawn, renderEnding } from './dawnScreen';
@@ -12,7 +9,7 @@ import { renderDeckPanel } from './deckPanel';
 import { el } from './dom';
 import { renderHelp } from './help';
 import { renderHud } from './hud';
-import { type Market, type MarketActions, type MarketSelection, createMarket } from './market';
+import { type Market, type MarketActions, createMarket } from './market';
 import { createRunScreen } from './runScreen';
 import { renderServerCard } from './serverCard';
 import type { Store, Transition } from './store';
@@ -22,12 +19,9 @@ interface UiState {
   isHelpOpen: boolean;
   isProxyArmed: boolean;
   isShowingRunResult: boolean;
-  marketSelection: MarketSelection;
   /** The last night whose briefing from Vesna the player has dismissed. */
   briefedNight: number;
 }
-
-const NO_SELECTION: MarketSelection = { dieId: null, faceIndex: null };
 
 /** Keeps the overlays that stay open in place, so they don't replay their entrance on every update. */
 function syncChildren(slot: HTMLElement, wanted: readonly HTMLElement[]): void {
@@ -45,7 +39,6 @@ export function startApp(root: HTMLElement, store: Store): void {
     isHelpOpen: !store.hasSavedGame,
     isProxyArmed: false,
     isShowingRunResult: false,
-    marketSelection: NO_SELECTION,
     briefedNight: store.hasSavedGame && opening.minutes > 0 ? opening.night : 0,
   };
   const mainSlot = el('div', { className: 'main-slot' });
@@ -66,22 +59,11 @@ export function startApp(root: HTMLElement, store: Store): void {
 
   const marketActions: MarketActions = {
     onClose: () => closeMarket(),
-    onBuySocket: () => apply(buySocket, sfx.coins),
     onBuyProgramSlot: () => apply(buyProgramSlot, sfx.coins),
     onBuyProgram: (program) => apply((current) => buyProgram(current, program), sfx.coins),
-    onBuySpareDie: () => apply(buySpareDie, sfx.coins),
-    onSelect: (selection) => {
-      ui.marketSelection = selection;
-      sfx.click();
-      render();
-    },
-    onFlash: (dieId, faceIndex, design) => apply((current) => flashFace(current, dieId, faceIndex, design), sfx.flash),
-    onOverclock: (dieId, faceIndex) => apply((current) => overclockFace(current, dieId, faceIndex), sfx.flash),
-    onAnchor: (dieId, faceIndex) => apply((current) => anchorFace(current, dieId, faceIndex), sfx.flash),
   };
 
-  function openMarket(selection: MarketSelection): void {
-    ui.marketSelection = selection;
+  function openMarket(): void {
     market = createMarket(marketActions);
     render();
   }
@@ -103,8 +85,6 @@ export function startApp(root: HTMLElement, store: Store): void {
           onScan: (serverId) => apply((current) => deepScan(current, serverId)),
         }))),
       renderDeckPanel(state, {
-        onToggleDie: (dieId) => apply((current) => toggleDieInLoadout(current, dieId)),
-        onUpgradeDie: (dieId) => openMarket({ dieId, faceIndex: null }),
         onToggleProgram: (program) => apply((current) => toggleProgramInLoadout(current, program)),
         onToggleProxy: () => {
           ui.isProxyArmed = !ui.isProxyArmed;
@@ -117,7 +97,7 @@ export function startApp(root: HTMLElement, store: Store): void {
     ]);
 
   const hudActions = {
-    onOpenMarket: () => openMarket(NO_SELECTION),
+    onOpenMarket: openMarket,
     onOpenHelp: () => {
       ui.isHelpOpen = true;
       render();
@@ -171,7 +151,7 @@ export function startApp(root: HTMLElement, store: Store): void {
   function render(): void {
     const state = store.current();
     if (state.phase !== 'net') market = null;
-    market?.update(state, ui.marketSelection);
+    market?.update(state);
     const isRunVisible = state.phase === 'run' || ui.isShowingRunResult;
     if (isRunVisible) {
       // Re-inserting the run screen would restart its CSS animations mid-roll, so keep it mounted.

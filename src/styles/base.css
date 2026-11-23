@@ -119,6 +119,12 @@ strong {
 .face-payday {
   --tone: var(--amber);
 }
+.face-blank {
+  --tone: #4a4270;
+}
+.glyph-blank {
+  fill: #4a4270;
+}
 
 .glyph {
   width: 1em;

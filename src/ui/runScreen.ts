@@ -1,20 +1,20 @@
-import {
-  PAYDAY_CASH, acceptFlatline, bankAndJackOut, reroutePrice, rerouteRun, roll, useBounce, useFailsafe, useSplice,
-} from '../game/actions';
+import { acceptFlatline, bankAndJackOut, reroutePrice, rerouteRun, roll, takeSplit, useBounce, useFailsafe } from '../game/actions';
 import { type CampaignState, type RunReport, findServer, isProgramReady } from '../game/campaign';
 import { formatClock } from '../game/clock';
 import { FACES_PER_DIE } from '../game/dice';
-import { nextSafeProbability } from '../game/policy';
-import type { RollOutcome } from '../game/roll';
-import { canReroute, canSplice, liveServer, runMinutes } from '../game/run';
+import { FILE_COLORS, type FileId, fileIndex } from '../game/files';
+import { survivalChance } from '../game/pairing';
+import type { RollRecord, SplitChoice } from '../game/roll';
+import { canReroute, runMinutes, streamContext } from '../game/run';
 import { sfx } from './audio';
 import { type DieView, createDieView } from './dice3d';
-import { el, money, wait } from './dom';
+import { el, wait } from './dom';
 import { createFxLayer, shake } from './fx';
 import { playHandshake } from './handshake';
 import { renderRunConsole } from './runConsole';
 import { type RunFrame, autoResolveMiss, filesFor, frameFor } from './runFrame';
 import { renderRunResult } from './runResult';
+import { CHOICE_KEYS, SPLIT_KEYS, renderSplitPicker } from './splitPicker';
 import type { Store } from './store';
 import { renderAlertMeter, renderTower } from './towers';
 
@@ -26,6 +26,22 @@ export interface RunScreen {
   /** Call when a new run starts so the dice tray and towers rebuild from scratch. */
   beginRun(): void;
   update(state: CampaignState): void;
+}
+
+function fileTone(file: FileId): string {
+  return `var(--file-${file})`;
+}
+
+/** Which of a split's two pairs actually downloaded, given the choice the player took. */
+function appliedPairs(rollRecord: RollRecord, choice: SplitChoice): boolean[] {
+  const option = rollRecord.options[choice.splitIndex];
+  const remaining = [...option.choices[choice.choiceIndex]];
+  return option.files.map((file) => {
+    const at = remaining.indexOf(file);
+    if (at === -1) return false;
+    remaining.splice(at, 1);
+    return true;
+  });
 }
 
 export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
@@ -41,9 +57,11 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   ]);
 
   let diceViews: DieView[] = [];
-  let displayedRoll: RollOutcome | null = null;
+  let displayedFaces: readonly number[] | null = null;
+  let displayedChoice: SplitChoice | null = null;
   let displayedFilled: number[] = [];
   let displayedBanked: number[] = [];
+  let pendingSplit: number | null = null;
   let isAnimating = false;
   let isStartingRun = true;
   let hasPendingUpdate = false;
@@ -52,8 +70,18 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
 
   const act = (transition: (state: CampaignState) => CampaignState, sound: () => void = sfx.click) => {
     if (isAnimating) return;
+    pendingSplit = null;
     sound();
     store.apply((state) => autoResolveMiss(transition(state)));
+  };
+
+  const choose = (splitIndex: number, choiceIndex: number) => act((state) => takeSplit(state, splitIndex, choiceIndex));
+
+  const previewFiles = (files: readonly FileId[] | null) => {
+    for (const tower of towers.children) {
+      const file = tower.getAttribute('data-file');
+      tower.classList.toggle('is-preview', files !== null && files.some((candidate) => candidate === file));
+    }
   };
 
   const buildDice = (frame: RunFrame) => {
@@ -65,17 +93,15 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   const renderTowers = (frame: RunFrame) => {
     const files = filesFor(frame);
     towers.replaceChildren(
-      ...frame.server.tracks.map((track, index) => {
-        const file = files[index];
-        return renderTower({
-          track,
-          banked: file.banked,
-          buffered: file.buffered,
-          stake: file.stake,
-          previousFilled: displayedFilled[index] ?? file.banked + file.buffered,
-          freshlyBanked: Math.max(0, file.banked - (displayedBanked[index] ?? file.banked)),
-        });
-      }),
+      ...frame.server.files.map((file, index) =>
+        renderTower({
+          file,
+          banked: files[index].banked,
+          buffered: files[index].buffered,
+          stream: files[index].stream,
+          previousFilled: displayedFilled[index] ?? files[index].banked + files[index].buffered,
+          freshlyBanked: Math.max(0, files[index].banked - (displayedBanked[index] ?? files[index].banked)),
+        })),
     );
     displayedFilled = files.map((file) => file.banked + file.buffered);
     displayedBanked = files.map((file) => file.banked);
@@ -98,23 +124,27 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   const renderConsole = (frame: RunFrame) => {
     const state = latestState;
     const price = reroutePrice(frame.server);
+    const context = streamContext(frame.run, frame.server);
+    const isLocked = isAnimating || frame.report !== null;
+    const lastRoll = frame.run.lastRoll;
+    const splitPicker = frame.run.status === 'choosing' && lastRoll !== null
+      ? renderSplitPicker({ roll: lastRoll, context, isLocked, pendingSplit, onChoose: choose, onPreview: previewFiles })
+      : null;
     consoleSlot.replaceChildren(
       renderRunConsole({
         run: frame.run,
-        safeChance: nextSafeProbability({ server: liveServer(frame.server, frame.run), buffer: frame.run.buffer, dice: frame.dice }),
-        isLocked: isAnimating || frame.report !== null,
-        canSplice: canSplice(frame.run) && isProgramReady(state, 'splice'),
+        safeChance: survivalChance(frame.dice, context),
+        isLocked,
+        splitPicker,
         canBounce: isProgramReady(state, 'bounce'),
         canFailsafe: isProgramReady(state, 'failsafe'),
         canReroute: canReroute(frame.run),
         reroutePrice: price,
         canAffordReroute: state.money >= price,
-        paydayCash: frame.run.paydays * PAYDAY_CASH,
         charges: state.charges,
         onRoll: () => act(roll),
         onJackOut: () => act(bankAndJackOut),
         onReroute: () => act(rerouteRun, sfx.reroute),
-        onSplice: () => act(useSplice),
         onBounce: () => act(useBounce),
         onFailsafe: () => act(useFailsafe),
         onAcceptMiss: () => act(acceptFlatline),
@@ -134,11 +164,11 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   };
 
   /** The cell a flying block should land on: the first empty block of that file's tower. */
-  const landingFor = (trackIndex: number): DOMRect | null => {
-    const shaft = towers.children[trackIndex]?.querySelector('.tower-shaft');
+  const landingFor = (index: number): DOMRect | null => {
+    const shaft = towers.children[index]?.querySelector('.tower-shaft');
     if (shaft === null || shaft === undefined) return null;
     const cells = shaft.children;
-    const fromTop = cells.length - 1 - Math.min(cells.length - 1, displayedFilled[trackIndex] ?? 0);
+    const fromTop = cells.length - 1 - Math.min(cells.length - 1, displayedFilled[index] ?? 0);
     return cells[fromTop]?.getBoundingClientRect() ?? shaft.getBoundingClientRect();
   };
 
@@ -148,68 +178,64 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     gained.forEach((blocks, index) => {
       const tower = towers.children[index];
       if (blocks <= 0 || tower === undefined) return;
+      const file = frame.server.files[index];
       tower.classList.add('is-gaining');
-      fx.floatText(tower.querySelector('.tower-shaft') ?? tower, `+${blocks}`, `tone-${frame.server.tracks[index].color}`);
-      const track = frame.server.tracks[index];
-      const isNewlyCracked = displayedFilled[index] >= track.length && (before[index] ?? 0) < track.length;
-      if (isNewlyCracked) {
+      fx.floatText(tower.querySelector('.tower-shaft') ?? tower, `+${blocks}`, `tone-${FILE_COLORS[file.id][1]}`);
+      const isNewlyFull = displayedFilled[index] >= file.length && (before[index] ?? 0) < file.length;
+      if (isNewlyFull) {
         tower.classList.add('is-cracking');
-        fx.burst(tower, `var(--${track.color})`, 28);
-        sfx.fileCracked(track.color);
+        fx.burst(tower, fileTone(file.id), 28);
+        sfx.fileCracked(FILE_COLORS[file.id][1]);
       }
     });
     if (gained.reduce((sum, blocks) => sum + Math.max(0, blocks), 0) >= BIG_ROLL_BLOCKS) shake(stage, 1.6);
   };
 
-  const animateRoll = async (frame: RunFrame, outcome: RollOutcome) => {
-    const previous = displayedRoll?.results ?? [];
-    const rerolled = new Set(outcome.results.filter((result, index) => result !== previous[index]));
-    sfx.rattle(rerolled.size);
-    await Promise.all(outcome.results.map((result, index) => {
-      const view = diceViews[index];
-      return view !== undefined && rerolled.has(result) ? view.rollTo(result.faceIndex) : Promise.resolve();
-    }));
-    let order = 0;
-    const flights = outcome.results.map((result, index) => {
-      const view = diceViews[index];
-      if (view === undefined) return Promise.resolve();
-      if (result.gain > 0 && result.trackIndex !== null) {
-        const color = frame.server.tracks[result.trackIndex].color;
-        view.setMood('hit', `var(--${color})`);
-        sfx.hit(color, order++);
-        const landing = landingFor(result.trackIndex);
-        return landing === null ? Promise.resolve() : fx.flyBlocks(view.element, landing, `var(--${color})`, result.gain * PARTICLES_PER_BLOCK);
-      }
-      if (result.face.kind === 'payday') {
-        view.setMood('special', 'var(--amber)');
-        fx.floatText(view.element, `+${money(PAYDAY_CASH)}`, 'is-cash');
-        sfx.payday();
-      } else if (result.face.kind === 'firewall' && outcome.isBlocked) {
-        view.setMood('special', 'var(--firewall)');
-        fx.floatText(view.element, 'Blocked', 'is-firewall');
-        fx.burst(view.element, 'var(--firewall)', 14);
-        sfx.firewall();
-      } else {
-        view.setMood('dud');
-      }
-      return Promise.resolve();
-    });
-    const before = [...displayedFilled];
-    await Promise.all(flights);
-    if (outcome.isHit) celebrateGains(frame, before);
+  const animateRoll = async (frame: RunFrame, rollRecord: RollRecord) => {
+    sfx.rattle(diceViews.length);
+    diceViews.forEach((view) => view.setMood('idle'));
+    await Promise.all(rollRecord.faceIndexes.map((faceIndex, index) => diceViews[index]?.rollTo(faceIndex) ?? Promise.resolve()));
+    if (frame.run.status === 'missed' || (frame.report !== null && rollRecord.chosen === null)) {
+      diceViews.forEach((view) => view.setMood('dud'));
+      sfx.probeMiss();
+    }
   };
 
-  const playEnding = async (frame: RunFrame, report: RunReport) => {
+  const animateChoice = async (frame: RunFrame, rollRecord: RollRecord, choice: SplitChoice) => {
+    const option = rollRecord.options[choice.splitIndex];
+    const applied = appliedPairs(rollRecord, choice);
+    const before = [...displayedFilled];
+    const flights = option.dicePairs.map((pair, pairIndex) => {
+      const file = option.files[pairIndex];
+      const views = pair.map((dieIndex) => diceViews[dieIndex]).filter((view): view is DieView => view !== undefined);
+      if (!applied[pairIndex]) {
+        views.forEach((view) => view.setMood('dud'));
+        return Promise.resolve();
+      }
+      views.forEach((view) => view.setMood('hit', fileTone(file)));
+      sfx.hit(FILE_COLORS[file][1], pairIndex);
+      const landing = landingFor(fileIndex(file));
+      const source = views[0];
+      return landing === null || source === undefined ? Promise.resolve() : fx.flyBlocks(source.element, landing, fileTone(file), PARTICLES_PER_BLOCK);
+    });
+    await Promise.all(flights);
+    celebrateGains(frame, before);
+  };
+
+  const playEnding = async (report: RunReport) => {
     if (report.ending === 'flatlined') {
       sfx.flatline();
       element.classList.add('is-glitching');
       await wait(700);
       element.classList.remove('is-glitching');
-    } else if (report.ending === 'downloaded') {
+    } else if (report.payout > 0) {
       sfx.download();
       element.classList.add('is-downloaded', 'is-jackpot');
-      [...towers.children].forEach((tower, index) => fx.burst(tower, `var(--${frame.server.tracks[index]?.color ?? 'amber'})`, 40));
-      fx.rain('$', 'var(--amber)', 36);
+      report.filesSold.forEach((file) => {
+        const tower = towers.children[fileIndex(file)];
+        if (tower !== undefined) fx.burst(tower, fileTone(file), 40);
+      });
+      fx.rain('$', 'var(--amber)', 12 + 12 * report.filesSold.length);
       shake(element, 2.4);
       await wait(900);
     } else {
@@ -223,9 +249,11 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
 
   const prepareNewRun = (frame: RunFrame) => {
     buildDice(frame);
-    displayedRoll = null;
-    displayedFilled = frame.server.tracks.map((track) => track.banked);
-    displayedBanked = frame.server.tracks.map((track) => track.banked);
+    displayedFaces = null;
+    displayedChoice = null;
+    pendingSplit = null;
+    displayedFilled = frame.server.files.map((file) => file.banked);
+    displayedBanked = frame.server.files.map((file) => file.banked);
     towers.replaceChildren();
     resultSlot.replaceChildren();
     element.classList.remove('is-downloaded', 'is-jackpot', 'has-result');
@@ -243,18 +271,26 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
       const startMinutes = latestState.minutes;
       steps.push(() => playHandshake(element, { server: frame.server, run: frame.run, startMinutes }).then(() => renderTowers(frame)));
     }
-    const outcome = frame.run.lastRoll;
-    if (outcome !== null && outcome !== displayedRoll) {
+    const rollRecord = frame.run.lastRoll;
+    if (rollRecord !== null && rollRecord.faceIndexes !== displayedFaces) {
       steps.push(async () => {
-        await animateRoll(frame, outcome);
-        displayedRoll = outcome;
+        await animateRoll(frame, rollRecord);
+        displayedFaces = rollRecord.faceIndexes;
+        displayedChoice = null;
+      });
+    }
+    const choice = rollRecord?.chosen ?? null;
+    if (rollRecord !== null && choice !== null && choice !== displayedChoice) {
+      steps.push(async () => {
+        await animateChoice(frame, rollRecord, choice);
+        displayedChoice = choice;
       });
     }
     const report = frame.report;
     if (report !== null && report !== playedReport) {
       steps.push(async () => {
         playedReport = report;
-        await playEnding(frame, report);
+        await playEnding(report);
       });
     }
     if (steps.length === 0) return null;
@@ -286,10 +322,38 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     });
   };
 
+  const rerenderConsole = () => {
+    const frame = frameFor(latestState);
+    if (frame !== null && frame.report === null) renderConsole(frame);
+  };
+
+  /** 1, 2, 3 take a split; a split that can only take one of its pairs waits for A or B. */
+  const handleSplitKey = (event: KeyboardEvent, rollRecord: RollRecord) => {
+    const splitIndex = SPLIT_KEYS.findIndex((key) => event.key === key);
+    const choiceIndex = CHOICE_KEYS.findIndex((key) => event.key.toUpperCase() === key);
+    if (splitIndex !== -1) {
+      const option = rollRecord.options[splitIndex];
+      if (option.choices.length === 1) choose(splitIndex, 0);
+      else if (option.choices.length > 1) {
+        pendingSplit = splitIndex;
+        rerenderConsole();
+      }
+    } else if (choiceIndex !== -1 && pendingSplit !== null) {
+      choose(pendingSplit, choiceIndex);
+    } else if (event.key === 'Escape' && pendingSplit !== null) {
+      pendingSplit = null;
+      rerenderConsole();
+    }
+  };
+
   const handleKey = (event: KeyboardEvent) => {
     if (!element.isConnected || isAnimating || latestState.run === null || event.repeat) return;
     const run = latestState.run;
-    const isRollable = run.status === 'connected' || run.status === 'hit' || run.status === 'blocked';
+    if (run.status === 'choosing' && run.lastRoll !== null) {
+      handleSplitKey(event, run.lastRoll);
+      return;
+    }
+    const isRollable = run.status === 'connected' || run.status === 'hit';
     if (event.code === 'Space' && isRollable) {
       event.preventDefault();
       act(roll);

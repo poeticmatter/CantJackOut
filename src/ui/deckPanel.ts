@@ -1,46 +1,29 @@
 import type { CampaignState } from '../game/campaign';
 import type { Die } from '../game/dice';
+import { MAX_STREAMS } from '../game/pairing';
 import { PROGRAMS, type ProgramId } from '../game/programs';
 import { el } from './dom';
 import { dieLabel, dieSummary, renderDieNet } from './dieNet';
 
 export interface DeckPanelActions {
-  readonly onToggleDie: (dieId: string) => void;
-  /** Opens the dice maker's bench with this die on it, or with no die picked yet. */
-  readonly onUpgradeDie: (dieId: string | null) => void;
   readonly onToggleProgram: (program: ProgramId) => void;
   readonly onToggleProxy: () => void;
   readonly onWaitForDawn: () => void;
 }
 
-function dieTile(die: Die, isSeated: boolean, actions: DeckPanelActions): HTMLElement {
-  return el('div', { className: `die-tile${isSeated ? ' is-seated' : ''}` }, [
-    el('button', {
-      className: 'die-tile-seat',
-      attrs: { type: 'button', 'aria-pressed': String(isSeated), title: isSeated ? 'Pull this die from the deck' : 'Seat this die in the deck' },
-      onClick: () => actions.onToggleDie(die.id),
-    }, [
-      el('span', { className: 'die-tile-name', text: dieLabel(die) }),
-      renderDieNet(die),
-      el('span', { className: 'die-tile-summary', text: dieSummary(die) }),
-    ]),
-    el('button', { className: 'die-tile-upgrade', text: 'Flash faces', attrs: { type: 'button', title: `Take ${dieLabel(die)} to Moth’s bench` }, onClick: () => actions.onUpgradeDie(die.id) }),
+function dieTile(die: Die): HTMLElement {
+  return el('div', { className: 'die-tile is-seated' }, [
+    el('span', { className: 'die-tile-name', text: dieLabel(die) }),
+    renderDieNet(die),
+    el('span', { className: 'die-tile-summary', text: dieSummary(die) }),
   ]);
 }
 
-function renderSockets(state: CampaignState, actions: DeckPanelActions): HTMLElement {
-  const seated = state.loadout.diceIds.map((id) => state.dice.find((die) => die.id === id)).filter((die): die is Die => die !== undefined);
-  const spare = state.dice.filter((die) => !state.loadout.diceIds.includes(die.id));
-  const emptySockets = Array.from({ length: state.diceSockets - seated.length }, () =>
-    el('div', { className: 'die-tile is-empty', text: 'Empty socket' }));
+function renderDice(state: CampaignState): HTMLElement {
   return el('section', { className: 'deck-section' }, [
-    el('div', { className: 'deck-heading-row' }, [
-      el('h2', { className: 'deck-heading', text: `Dice ${seated.length} of ${state.diceSockets} sockets` }),
-      el('button', { className: 'btn btn-small btn-upgrade', text: 'Upgrade dice', attrs: { type: 'button' }, onClick: () => actions.onUpgradeDie(null) }),
-    ]),
-    el('div', { className: 'die-tiles' }, [...seated.map((die) => dieTile(die, true, actions)), ...emptySockets]),
-    spare.length > 0 ? el('h3', { className: 'deck-subheading', text: 'Spare dice' }) : null,
-    spare.length > 0 ? el('div', { className: 'die-tiles' }, spare.map((die) => dieTile(die, false, actions))) : null,
+    el('h2', { className: 'deck-heading', text: `Dice ${state.dice.length}` }),
+    el('p', { className: 'deck-empty', text: `Each roll splits into two pairs. A run can work on ${MAX_STREAMS} files.` }),
+    el('div', { className: 'die-tiles' }, state.dice.map(dieTile)),
   ]);
 }
 
@@ -73,7 +56,7 @@ function renderPrograms(state: CampaignState, actions: DeckPanelActions, isProxy
     canArmProxy
       ? el('label', { className: 'proxy-toggle' }, [
           checkbox(isProxyArmed, actions.onToggleProxy),
-          el('span',{ text: 'Route the next run through the proxy chain (half the time)' }),
+          el('span', { text: 'Route the next run through the proxy chain (half the time)' }),
         ])
       : null,
   ]);
@@ -82,7 +65,7 @@ function renderPrograms(state: CampaignState, actions: DeckPanelActions, isProxy
 export function renderDeckPanel(state: CampaignState, actions: DeckPanelActions, isProxyArmed: boolean): HTMLElement {
   return el('aside', { className: 'deck-panel', attrs: { 'aria-label': 'Your deck' } }, [
     el('h1', { className: 'deck-title', text: 'Your deck' }),
-    renderSockets(state, actions),
+    renderDice(state),
     renderPrograms(state, actions, isProxyArmed),
     el('button', { className: 'btn btn-quiet deck-wait', text: 'Call it a night', attrs: { type: 'button', title: 'Skip ahead to dawn and settle up with Vesna.' }, onClick: actions.onWaitForDawn }),
   ]);

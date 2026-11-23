@@ -282,3 +282,152 @@
     font-size: var(--step-3);
   }
 }
+
+/* Streams ------------------------------------------------------------------------ */
+.streams {
+  display: grid;
+  gap: 6px;
+}
+.streams-label {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.stream-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stream-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border-radius: var(--radius-small);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.stream-slot.is-open {
+  border: 1px solid var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tone) 35%, transparent);
+}
+.stream-slot.is-free {
+  border: 1px dashed var(--edge-bright);
+  color: var(--muted);
+  font-weight: 400;
+}
+.stream-glyph {
+  width: 26px;
+  height: 18px;
+}
+
+/* Split picker ------------------------------------------------------------------- */
+.split-picker {
+  display: grid;
+  gap: 10px;
+}
+.split-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  background: var(--smoke-raised);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius);
+}
+button.split-card {
+  cursor: pointer;
+}
+button.split-card:hover:not(:disabled),
+button.split-card:focus-visible,
+.split-card.is-pending {
+  border-color: var(--amber);
+  box-shadow: 0 0 18px rgba(255, 182, 72, 0.3);
+}
+.split-card.is-dead {
+  opacity: 0.45;
+}
+.split-key {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.split-pairs {
+  display: flex;
+  gap: 4px;
+}
+.split-pair {
+  display: inline-grid;
+  place-items: center;
+  padding: 3px 2px;
+  border-radius: var(--radius-small);
+  background: rgba(0, 0, 0, 0.3);
+}
+.split-pair-glyph {
+  width: 30px;
+  height: 20px;
+}
+.split-effects {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.split-effect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.split-effect strong {
+  color: var(--tone);
+}
+.split-effect-glyph {
+  width: 24px;
+  height: 16px;
+}
+.split-new-stream {
+  font-size: var(--step--1);
+  color: var(--amber);
+}
+.split-note {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.split-forks {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.split-fork {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--edge-bright);
+  border-radius: var(--radius-small);
+}
+.split-fork:hover:not(:disabled),
+.split-fork:focus-visible {
+  border-color: var(--amber);
+}

@@ -3,7 +3,6 @@ import type { RunState } from '../game/run';
 import { type Server, hasModifier } from '../game/server';
 import { sfx } from './audio';
 import { el, prefersReducedMotion } from './dom';
-import { COLOR_LABEL } from './faceStyle';
 
 /** On screen, a longer handshake takes longer too, so a bad connection is felt as well as read. */
 const BASE_MILLISECONDS = 1300;
@@ -20,8 +19,8 @@ interface Step {
 
 function stepsFor(server: Server, run: RunState): Step[] {
   const proxies = 3 + (run.handshakeMinutes % 5);
-  const files = server.tracks.map((track) => `${COLOR_LABEL[track.color].toLowerCase()} ${track.length}`).join(', ');
-  const isReturning = server.tracks.some((track) => track.banked > 0);
+  const files = server.files.map((file) => `${file.id} ${file.length}`).join(', ');
+  const isReturning = server.files.some((file) => file.banked > 0);
   return [
     { text: `routing through ${proxies} proxies`, result: 'ok', weight: 1 },
     { text: `spoofing ${server.corp} credentials`, result: 'accepted', weight: 1.4 },
@@ -32,7 +31,7 @@ function stepsFor(server: Server, run: RunState): Step[] {
     hasModifier(server, 'tracer')
       ? { text: 'tracer on the line', result: 'spoofed, for now', weight: 1.8, isWarning: true }
       : { text: 'mapping file system', result: 'done', weight: 1 },
-    { text: isReturning ? `back in: ${files}` : `${server.tracks.length} file${server.tracks.length === 1 ? '' : 's'} found: ${files}`, result: 'staking a block of each', weight: 1 },
+    { text: isReturning ? `back in: ${files}` : `${server.files.length} files found: ${files}`, result: 'two streams ready', weight: 1 },
   ];
 }
 

@@ -1,8 +1,10 @@
 import { acceptFlatline } from '../game/actions';
-import { type CampaignState, type RunReport, findServer, isProgramReady, loadoutDice } from '../game/campaign';
+import { type CampaignState, type RunReport, findServer, isProgramReady } from '../game/campaign';
 import type { Die } from '../game/dice';
-import { type RunState, serverAfterRun } from '../game/run';
+import { MAX_STREAMS } from '../game/pairing';
+import { type RunState, serverAfterRun, streamContext } from '../game/run';
 import type { Server } from '../game/server';
+import type { StreamMark } from './towers';
 
 /** What the run screen is showing: a live run, or the replay of one that just ended. */
 export interface RunFrame {
@@ -15,28 +17,33 @@ export interface RunFrame {
 export interface FileView {
   readonly banked: number;
   readonly buffered: number;
-  readonly stake: number;
+  readonly stream: StreamMark;
 }
 
 export function frameFor(state: CampaignState): RunFrame | null {
   if (state.run !== null) {
-    return { server: findServer(state, state.run.serverId), run: state.run, report: null, dice: loadoutDice(state) };
+    return { server: findServer(state, state.run.serverId), run: state.run, report: null, dice: state.dice };
   }
   const report = state.lastRunReport;
   if (report === null) return null;
-  return { server: report.serverBefore, run: report.finalRun, report, dice: loadoutDice(state) };
+  return { server: report.serverBefore, run: report.finalRun, report, dice: state.dice };
 }
 
 /** Each file as the screen should show it right now. */
 export function filesFor(frame: RunFrame): FileView[] {
   if (frame.report !== null) {
-    return serverAfterRun(frame.server, frame.run).tracks.map((track) => ({ banked: track.banked, buffered: 0, stake: 0 }));
+    return serverAfterRun(frame.server, frame.run).files.map((file) => ({ banked: file.banked, buffered: 0, stream: 'open' }));
   }
-  return frame.server.tracks.map((_, index) => ({
-    banked: frame.run.banked[index],
-    buffered: frame.run.buffer[index],
-    stake: Math.min(frame.run.stake[index], frame.run.buffer[index]),
-  }));
+  const { streams, fullFiles } = streamContext(frame.run, frame.server);
+  return frame.server.files.map((file, index) => {
+    const isStream = streams.includes(file.id);
+    const canOpen = streams.length < MAX_STREAMS && !fullFiles.includes(file.id);
+    return {
+      banked: frame.run.banked[index],
+      buffered: frame.run.buffer[index],
+      stream: isStream ? 'stream' : canOpen ? 'open' : 'locked',
+    };
+  });
 }
 
 /** A miss with no rescue program loaded resolves straight away instead of asking. */

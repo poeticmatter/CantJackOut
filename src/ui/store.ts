@@ -2,8 +2,8 @@ import { type CampaignState, newCampaign } from '../game/campaign';
 import { showToast } from './toast';
 
 const SAVE_KEY = 'cant-jack-out:save';
-/** Version 2: stakes, server alert and the new die faces changed the shape of a save. */
-const SAVE_VERSION = 2;
+/** Version 3: the dice-pairing experiment (six files per server, streams) changed the shape of a save. */
+const SAVE_VERSION = 3;
 
 interface SaveFile {
   readonly version: number;

@@ -29,7 +29,10 @@ async function playOneRun(root: HTMLElement): Promise<void> {
   root.querySelector<HTMLButtonElement>('.card-jack')?.click();
   for (let clicks = 0; clicks < MAX_CLICKS && root.querySelector('.run-result') === null; clicks++) {
     await settle();
-    const next = root.querySelector<HTMLButtonElement>('.btn-roll:not(:disabled)') ?? buttonLabelled(root, 'Take the hit');
+    const next =
+      root.querySelector<HTMLButtonElement>('.btn-roll:not(:disabled)') ??
+      root.querySelector<HTMLButtonElement>('button.split-card:not(:disabled), .split-fork:not(:disabled)') ??
+      buttonLabelled(root, 'Take the hit');
     next?.click();
   }
   await settle();
@@ -84,11 +87,13 @@ describe('app', () => {
     expect(root.querySelector('.call-vesna')).not.toBeNull();
   });
 
-  it('takes a die from the deck panel straight to the bench', () => {
+  it('offers the three splits after a roll', async () => {
     const root = mountApp();
     buttonLabelled(root, 'Got it')?.click();
-    buttonLabelled(root, 'Get to work')?.click();
-    buttonLabelled(root, 'Flash faces')?.click();
-    expect(root.querySelector('.bench-die.is-selected')).not.toBeNull();
+    root.querySelector<HTMLButtonElement>('.card-jack')?.click();
+    await settle();
+    root.querySelector<HTMLButtonElement>('.btn-roll')?.click();
+    await settle();
+    expect(root.querySelectorAll('.split-card')).toHaveLength(3);
   });
 });

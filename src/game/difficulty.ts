@@ -1,13 +1,11 @@
 import { type Die, createStandardDie } from './dice';
-import { REFERENCE_RISK_APPETITE, shouldKeepRolling } from './policy';
+import { DICE_PER_ROLL } from './pairing';
+import { REFERENCE_RISK_APPETITE, chooseReferenceSplit, shouldKeepRolling } from './policy';
 import { type Rng, createRng } from './random';
-import { type RunState, canRoll, flatline, jackOut, liveServer, rollRun, runMinutes, serverAfterRun, startRun } from './run';
+import { type RunState, canRoll, chooseSplit, flatline, jackOut, rollRun, runMinutes, serverAfterRun, startRun } from './run';
 import { type Server, isFullyDownloaded } from './server';
 
-export const STARTING_DICE_COUNT = 3;
-
-/** Rewards are always priced against the starting rig, so upgrades make every server pay better per hour. */
-export const REFERENCE_DICE: readonly Die[] = Array.from({ length: STARTING_DICE_COUNT }, (_, index) =>
+export const REFERENCE_DICE: readonly Die[] = Array.from({ length: DICE_PER_ROLL }, (_, index) =>
   createStandardDie(`reference-${index}`),
 );
 
@@ -25,17 +23,19 @@ export interface DownloadSimulationOptions {
   readonly riskAppetite?: number;
 }
 
-/**
- * Every run rolls at least once: with a stake on the line, leaving before the first roll only
- * throws away the handshake. After that the reference push-your-luck rule decides.
- */
+/** One run by the reference player: roll, take its favorite split, and jack out when the push rule says so. */
 export function playReferenceRun(server: Server, dice: readonly Die[], rng: Rng, riskAppetite: number): RunState {
   let run = startRun(server, false, rng);
-  while (canRoll(run)) {
-    const isPushing = run.rolls === 0 || shouldKeepRolling({ server: liveServer(server, run), buffer: run.buffer, dice }, riskAppetite);
-    run = isPushing ? rollRun(run, server, dice, rng) : jackOut(run);
+  for (;;) {
+    if (run.status === 'choosing') {
+      const pick = chooseReferenceSplit(run, server, dice);
+      run = chooseSplit(run, server, pick.splitIndex, pick.choiceIndex);
+    } else if (canRoll(run)) {
+      run = shouldKeepRolling(run, server, dice, riskAppetite) ? rollRun(run, server, dice, rng) : jackOut(run);
+    } else {
+      return run.status === 'missed' ? flatline(run, rng) : run;
+    }
   }
-  return run.status === 'missed' ? flatline(run, rng) : run;
 }
 
 /** Plays a server to completion, or returns null if it takes more runs than any player would spend. */
@@ -45,7 +45,7 @@ export function simulateDownload(start: Server, options: DownloadSimulationOptio
   let runs = 0;
   let minutes = 0;
   let flatlines = 0;
-  while (!isFullyDownloaded(server, server.tracks.map(() => 0))) {
+  while (!isFullyDownloaded(server)) {
     if (runs >= MAX_SIMULATED_RUNS) return null;
     const run = playReferenceRun(server, options.dice, options.rng, riskAppetite);
     runs++;

@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "stats": "tsx src/sim/cantStopStats.ts",
+    "stats:pairing": "tsx src/sim/pairingStats.ts",
     "calibrate": "tsx src/sim/calibrate.ts",
     "deploy": "npm run build && gh-pages -d dist"
   },

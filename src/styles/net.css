@@ -206,12 +206,12 @@
 
 .file-bar {
   display: grid;
-  grid-template-columns: 18px 1fr auto;
+  grid-template-columns: 26px 1fr auto 3.6em;
   align-items: center;
   gap: 8px;
 }
 .file-bar-glyph {
-  width: 16px;
+  width: 26px;
   height: 16px;
 }
 .file-bar-track {

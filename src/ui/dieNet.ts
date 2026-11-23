@@ -1,37 +1,19 @@
 import type { Die, Face } from '../game/dice';
 import { el } from './dom';
-import { anchorMark, describeFace, faceClasses, faceGlyph } from './faceStyle';
+import { describeFace, faceClasses, faceGlyph } from './faceStyle';
 
 export function dieLabel(die: Die): string {
   return `Die ${die.id.replace(/^die-/, '')}`;
 }
 
-export interface DieNetOptions {
-  readonly selectedFace?: number | null;
-  readonly onFaceClick?: (faceIndex: number) => void;
+export function faceContent(face: Face, prefix: string): Element[] {
+  return [faceGlyph(face, `${prefix}-glyph`)];
 }
 
-export function faceContent(face: Face, prefix: string): (Element | null)[] {
-  return [
-    faceGlyph(face, `${prefix}-glyph`),
-    face.kind === 'data' && face.boost === 2 ? el('span', { className: `${prefix}-boost`, text: '×2' }) : null,
-    face.kind === 'data' && face.isAnchored ? anchorMark(`${prefix}-anchor`) : null,
-  ];
-}
-
-/** Flat view of all six faces, used wherever the player inspects or edits a die. */
-export function renderDieNet(die: Die, options: DieNetOptions = {}): HTMLElement {
-  const faces = die.faces.map((face, index) => {
-    const isSelected = options.selectedFace === index;
-    const className = `net-face ${faceClasses(face)}${isSelected ? ' is-selected' : ''}`;
-    if (options.onFaceClick === undefined) return el('span', { className, attrs: { title: describeFace(face) } }, faceContent(face, 'net'));
-    const onFaceClick = options.onFaceClick;
-    return el('button', {
-      className,
-      attrs: { type: 'button', 'aria-pressed': String(isSelected), 'aria-label': `Face ${index + 1}: ${describeFace(face)}` },
-      onClick: () => onFaceClick(index),
-    }, faceContent(face, 'net'));
-  });
+/** Flat view of all six faces, used wherever the player inspects a die. */
+export function renderDieNet(die: Die): HTMLElement {
+  const faces = die.faces.map((face) =>
+    el('span', { className: `net-face ${faceClasses(face)}`, attrs: { title: describeFace(face) } }, faceContent(face, 'net')));
   return el('div', { className: 'die-net' }, faces);
 }
 

@@ -1,16 +1,76 @@
 /* Towers ----------------------------------------------------------------------- */
+/* Each file's tone: its color, or the even mix of its two colors. */
+:root {
+  --file-RR: var(--red);
+  --file-RB: color-mix(in srgb, var(--red) 50%, var(--blue));
+  --file-RG: color-mix(in srgb, var(--red) 50%, var(--green));
+  --file-BB: var(--blue);
+  --file-BG: color-mix(in srgb, var(--blue) 50%, var(--green));
+  --file-GG: var(--green);
+}
+.file-RR { --tone: var(--file-RR); }
+.file-RB { --tone: var(--file-RB); }
+.file-RG { --tone: var(--file-RG); }
+.file-BB { --tone: var(--file-BB); }
+.file-BG { --tone: var(--file-BG); }
+.file-GG { --tone: var(--file-GG); }
+
 .towers {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: stretch;
-  gap: clamp(24px, 6vw, 80px);
+  gap: clamp(8px, 1.6vw, 22px);
   min-height: 340px;
 }
 .tower {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  width: clamp(90px, 13vw, 150px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+/* A file the run can't reach any more: streams are taken by other files. */
+.tower.is-locked:not(.is-complete) {
+  opacity: 0.42;
+}
+.tower-stream {
+  justify-self: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--edge);
+}
+.tower-stream.is-hidden {
+  visibility: hidden;
+}
+.tower.is-stream .tower-stream {
+  color: var(--ink);
+  background: var(--tone);
+  border-color: var(--tone);
+  box-shadow: 0 0 12px var(--tone);
+}
+.tower.is-stream .tower-shaft {
+  border-color: var(--tone);
+  border-width: 2px;
+}
+/* Hovering a split lights the files it would advance. */
+.tower.is-preview {
+  opacity: 1;
+  transform: translateY(-4px);
+}
+.tower.is-preview .tower-shaft {
+  border-color: var(--amber);
+  box-shadow: 0 0 22px rgba(255, 182, 72, 0.45);
+}
+.tower-payout {
+  display: block;
+  font-style: normal;
+  font-size: var(--step--1);
+  color: var(--amber);
 }
 .tower-head {
   display: flex;
@@ -21,7 +81,7 @@
   font-weight: 600;
 }
 .tower-glyph {
-  width: 22px;
+  width: 30px;
   height: 22px;
   filter: drop-shadow(0 0 6px var(--tone));
 }

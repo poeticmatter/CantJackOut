@@ -3,16 +3,16 @@ import { el } from './dom';
 import { glyph } from './faceStyle';
 
 const RULES: readonly string[] = [
-  'Pick a server and jack in. Each server holds one or two files, and each file has a color.',
-  'Every run starts with one block of each unfinished file at risk: a free one on a server you haven’t touched, otherwise the last block you banked there.',
-  'Roll your dice. Every die that shows a file’s color downloads one block of that file.',
-  'Keep rolling to download more, or jack out to bank everything at risk. A roll where no die matches an unfinished file jacks you out, and everything at risk is lost.',
-  'Mid-run, you can pay to reroute: bank what you have and keep going, without the handshake of a fresh visit.',
-  'Download every file on a server to sell the data. Partial downloads are worth nothing.',
-  'Every visit raises a server’s alert, and getting caught raises it twice. When it fills, the sysadmin wipes everything you banked there.',
+  'Pick a server and jack in. Every server holds six files, one for each pair of colors: RR, RB, RG, BB, BG and GG. Servers differ in how long each file is.',
+  'Roll four dice, then split them into two pairs. You see all three ways to split them and pick one. Each pair downloads a block of the file matching its two colors, in any order.',
+  'A run can work on two files at most: its streams. A file opens a stream the first time you download from it. A pair whose file is full, or that would need a third stream, does nothing.',
+  'Keep rolling to download more, or jack out to bank everything at risk. A roll where no split has a usable pair jacks you out, and everything at risk is lost. With every file open, your first roll can’t miss.',
+  'Mid-run, you can pay to reroute: bank what you have and free both streams, without the handshake of a fresh visit.',
+  'The fence pays for each file as soon as all of it is banked. Short files are rare pairs, and pay about as much as long common ones. Once all six are sold, the server leaves the net.',
+  'Every visit raises a server’s alert, and getting caught raises it twice. When it fills, the sysadmin wipes every unfinished file there. Files you’ve sold are safe.',
   'Every run costs time: a random handshake, plus a few minutes per roll, plus recovery if you get caught. At dawn the night ends, wherever the clock lands.',
   `At each dawn Vesna takes her cut. Come up short and she takes everything plus a strike. ${MAX_STRIKES} strikes and she takes the deck. Survive ${FINAL_NIGHT} nights to own it.`,
-  'Between runs, Moth’s back room sells more dice, programs and reflashed faces. “Upgrade dice” in your deck panel takes you straight to her bench.',
+  'Between runs, Moth’s back room sells program slots and programs.',
 ];
 
 export function renderHelp(onClose: () => void): HTMLElement {
@@ -25,7 +25,7 @@ export function renderHelp(onClose: () => void): HTMLElement {
         el('div', { className: 'help-face face-blue' }, [glyph('blue', 'help-glyph'), el('span', { text: '2 faces in 6' })]),
         el('div', { className: 'help-face face-green' }, [glyph('green', 'help-glyph'), el('span', { text: '3 faces in 6' })]),
       ]),
-      el('p', { className: 'help-caption', text: 'A standard die. Red is rare, so a short red file can be as hard as a long green one.' }),
+      el('p', { className: 'help-caption', text: 'A standard die. You roll four. Red pairs are rare, so the RR file is short.' }),
       el('ol', { className: 'help-rules' }, RULES.map((rule) => el('li', { text: rule }))),
       el('button', { className: 'btn btn-primary', text: 'Got it', attrs: { type: 'button', autofocus: '' }, onClick: onClose }),
     ]),

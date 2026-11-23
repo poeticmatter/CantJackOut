@@ -1,48 +1,72 @@
 import { DUMPSHOCK_MINUTES } from './clock';
-import { type Die, expectedProgress, safeProbability } from './dice';
-import { type Buffer, type Server, hasModifier, openColors, remainingSteps } from './server';
+import type { Die } from './dice';
+import { FILE_IDS, type FileId, fileIndex } from './files';
+import { type StreamContext, forEachColorOutcome, splitOptions, streamsAfter, survivalChance } from './pairing';
+import { type RunState, blocksAtRisk, liveServer, streamContext } from './run';
+import { type Buffer, type Server, fullFiles, hasModifier, remainingSteps } from './server';
 
 /**
- * Multiplier on the expected gain of another roll. Above 1 pushes harder than the
- * break-even point, below 1 is cautious. Tuned by `npm run calibrate` to minimise
- * the time a server takes with the starting rig.
+ * The reference player drives the balance tools. Its numbers are rough first guesses and
+ * have not been tuned: the dice-pairing experiment is being playtested by hand first.
  */
 export const REFERENCE_RISK_APPETITE = 0.8;
+/** How much the bot values keeping the next roll safe when it picks a split, in blocks. */
+const SURVIVAL_WEIGHT_IN_BLOCKS = 2;
+/** Rough minutes a block is worth; turns dumpshock time into blocks. */
+const MINUTES_PER_BLOCK_ESTIMATE = 12;
+const DUMPSHOCK_BLOCK_COST = (DUMPSHOCK_MINUTES.min + DUMPSHOCK_MINUTES.max) / 2 / MINUTES_PER_BLOCK_ESTIMATE;
 
-/** Rough minutes a banked step is worth to a starting rig; turns dumpshock time into steps. */
-const MINUTES_PER_STEP_ESTIMATE = 25;
-const DUMPSHOCK_STEP_COST = (DUMPSHOCK_MINUTES.min + DUMPSHOCK_MINUTES.max) / 2 / MINUTES_PER_STEP_ESTIMATE;
-
-export interface RollDecisionInput {
-  /** The server as the run sees it, with the run's own banked blocks. */
-  readonly server: Server;
-  readonly buffer: Buffer;
-  readonly dice: readonly Die[];
+export interface SplitPick {
+  readonly splitIndex: number;
+  readonly choiceIndex: number;
 }
 
-/** Probability the next roll doesn't get you caught: it scores on an unfinished file, or a Firewall face blocks the miss. */
-export function nextSafeProbability({ server, buffer, dice }: RollDecisionInput): number {
-  return safeProbability(dice, openColors(server, buffer));
+function bufferAfter(server: Server, buffer: Buffer, files: readonly FileId[]): Buffer {
+  return files.reduce((next, file) => {
+    const index = fileIndex(file);
+    const room = remainingSteps(server.files[index], next[index]);
+    return next.map((steps, position) => (position === index ? steps + Math.min(1, room) : steps));
+  }, buffer);
 }
 
-/** Expected steps from one more roll, capped by what each file can still take. */
-export function expectedCappedGain({ server, buffer, dice }: RollDecisionInput): number {
-  return server.tracks.reduce((total, track, index) => {
-    const remaining = remainingSteps(track, buffer[index]);
-    return total + Math.min(remaining, expectedProgress(dice, remaining > 0 ? [track.color] : []));
-  }, 0);
+function contextAfter(server: Server, buffer: Buffer, streams: readonly FileId[]): StreamContext {
+  return { streams, fullFiles: fullFiles(server, buffer) };
 }
 
-/** Everything a miss would cost right now, in steps. */
-export function expectedMissCost(input: RollDecisionInput): number {
-  const buffered = input.buffer.reduce((sum, steps) => sum + steps, 0);
-  const iceLoss = hasModifier(input.server, 'blackIce') ? input.server.tracks.length : 0;
-  return buffered + iceLoss + DUMPSHOCK_STEP_COST;
+/** Picks the split that adds the most progress (as a share of each file) while keeping the next roll safe. */
+export function chooseReferenceSplit(run: RunState, server: Server, dice: readonly Die[]): SplitPick {
+  if (run.lastRoll === null) throw new Error('No roll to choose from');
+  const live = liveServer(server, run);
+  let best: (SplitPick & { score: number }) | null = null;
+  run.lastRoll.options.forEach((option, splitIndex) => {
+    option.choices.forEach((files, choiceIndex) => {
+      const progress = files.reduce((sum, file) => sum + 1 / live.files[fileIndex(file)].length, 0) * FILE_IDS.length;
+      const buffer = bufferAfter(live, run.buffer, files);
+      const safety = survivalChance(dice, contextAfter(live, buffer, streamsAfter(run.streams, files)));
+      const score = progress + safety * SURVIVAL_WEIGHT_IN_BLOCKS;
+      if (best === null || score > best.score) best = { splitIndex, choiceIndex, score };
+    });
+  });
+  if (best === null) throw new Error('Asked to choose a split on a missed roll');
+  return best;
 }
 
-/** Reference push-your-luck rule used to price servers and drive the balance bots. */
-export function shouldKeepRolling(input: RollDecisionInput, riskAppetite = REFERENCE_RISK_APPETITE): boolean {
-  if (input.buffer.every((steps) => steps === 0)) return true;
-  const missChance = 1 - nextSafeProbability(input);
-  return expectedCappedGain(input) * riskAppetite > missChance * expectedMissCost(input);
+/** Expected blocks from one more roll, taking the best split of each outcome. */
+function expectedBlocks(context: StreamContext, dice: readonly Die[]): number {
+  let total = 0;
+  forEachColorOutcome(dice, (colors, chance) => {
+    const most = Math.max(0, ...splitOptions(colors, context).flatMap((option) => option.choices.map((files) => files.length)));
+    total += most * chance;
+  });
+  return total;
+}
+
+/** Reference push-your-luck rule used by the balance bots. */
+export function shouldKeepRolling(run: RunState, server: Server, dice: readonly Die[], riskAppetite = REFERENCE_RISK_APPETITE): boolean {
+  if (blocksAtRisk(run) === 0) return true;
+  const context = streamContext(run, server);
+  const missChance = 1 - survivalChance(dice, context);
+  const iceLoss = hasModifier(server, 'blackIce') ? FILE_IDS.length : 0;
+  const missCost = blocksAtRisk(run) + iceLoss + DUMPSHOCK_BLOCK_COST;
+  return expectedBlocks(context, dice) * riskAppetite > missChance * missCost;
 }

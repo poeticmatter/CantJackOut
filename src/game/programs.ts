@@ -1,4 +1,4 @@
-export type ProgramId = 'bounce' | 'splice' | 'failsafe' | 'proxy' | 'deepScan';
+export type ProgramId = 'bounce' | 'failsafe' | 'proxy' | 'deepScan';
 
 export interface ProgramDefinition {
   readonly id: ProgramId;
@@ -22,13 +22,6 @@ export const PROGRAMS: Record<ProgramId, ProgramDefinition> = {
     summary: 'When a roll misses, keep half of this run’s unbanked download.',
     chargesPerNight: 2,
     price: 350,
-  },
-  splice: {
-    id: 'splice',
-    name: 'Splice',
-    summary: 'After a hit, reroll the dice that scored nothing and add whatever they hit.',
-    chargesPerNight: 2,
-    price: 400,
   },
   proxy: {
     id: 'proxy',
