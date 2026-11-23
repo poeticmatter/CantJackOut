@@ -5,10 +5,16 @@ import {
 import { isDawn } from './clock';
 import type { Rng } from './random';
 import {
-  type RunState, bounceMiss, flatline, flatlineWithFailsafe, jackOut, rollRun, runMinutes, serverAfterRun,
+  type RunState, bounceMiss, flatline, flatlineWithFailsafe, jackOut, reroute, rollRun, runAftermath, runMinutes,
   spliceRoll, startRun,
 } from './run';
 import { type Server, isFullyDownloaded } from './server';
+
+/** Cash a Payday face pays each time it shows. */
+export const PAYDAY_CASH = 15;
+
+/** Roughly what the half hour a reroute saves over a fresh handshake is worth at each tier. */
+const REROUTE_PRICE_BY_TIER: Record<number, number> = { 1: 30, 2: 40, 3: 50, 4: 60, 5: 70 };
 
 export function canJackIn(state: CampaignState): boolean {
   return state.phase === 'net' && state.loadout.diceIds.length > 0 && !isDawn(state.minutes);
@@ -72,6 +78,17 @@ export function useFailsafe(state: CampaignState): CampaignState {
   return stepRun(charged, (run, _server, rng) => flatlineWithFailsafe(run, rng));
 }
 
+export function reroutePrice(server: Server): number {
+  return REROUTE_PRICE_BY_TIER[server.tier];
+}
+
+/** Pay to bank this run's download in place, without the handshake a fresh visit would cost. */
+export function rerouteRun(state: CampaignState): CampaignState {
+  const price = reroutePrice(findServer(state, activeRun(state).serverId));
+  if (state.money < price) throw new Error(`Rerouting costs $${price}; you have $${state.money}`);
+  return stepRun({ ...state, money: state.money - price }, (run, server) => reroute(run, server));
+}
+
 export function useSplice(state: CampaignState): CampaignState {
   const charged = spendCharge(state, 'splice');
   return stepRun(charged, (run, server, rng) => spliceRoll(run, server, loadoutDice(state), rng));
@@ -81,37 +98,44 @@ function finishRun(state: CampaignState, rng: Rng): CampaignState {
   const run = activeRun(state);
   const server = findServer(state, run.serverId);
   const minutes = runMinutes(run, server);
-  const updatedServer = serverAfterRun(server, run);
-  const isDownloaded = isFullyDownloaded(updatedServer, updatedServer.tracks.map(() => 0));
+  const aftermath = runAftermath(server, run);
+  const isDownloaded = isFullyDownloaded(aftermath.server, aftermath.server.tracks.map(() => 0));
   const payout = isDownloaded ? server.reward : 0;
+  const paydayCash = run.paydays * PAYDAY_CASH;
   const isFlatlined = run.ending === 'flatlined';
   const afterServer = isDownloaded
     ? replaceWithFreshServer(state, server.id, rng)
-    : replaceServer(state, updatedServer);
+    : replaceServer(state, aftermath.server);
   const stats = afterServer.stats;
   return {
     ...afterServer,
     phase: isDawn(state.minutes + minutes) ? 'dawn' : 'net',
     minutes: state.minutes + minutes,
-    money: state.money + payout,
+    money: state.money + payout + paydayCash,
     run: null,
     lastRunReport: {
       serverName: `${server.corp} ${server.name}`,
       ending: isDownloaded ? 'downloaded' : (run.ending ?? 'jackedOut'),
       minutes,
-      stepsBanked: run.buffer.reduce((sum, steps) => sum + steps, 0),
+      blocksGained: bankedTotal(aftermath.server) - bankedTotal(server),
       payout,
-      iceBurned: isFlatlined && server.modifiers.includes('blackIce'),
+      paydayCash,
+      iceBurned: aftermath.isIceBurned,
+      isPurged: aftermath.isPurged,
       finalRun: run,
       serverBefore: server,
     },
     stats: {
       serversCracked: stats.serversCracked + (isDownloaded ? 1 : 0),
-      earned: stats.earned + payout,
+      earned: stats.earned + payout + paydayCash,
       runs: stats.runs + 1,
       flatlines: stats.flatlines + (isFlatlined ? 1 : 0),
     },
   };
+}
+
+function bankedTotal(server: Server): number {
+  return server.tracks.reduce((sum, track) => sum + track.banked, 0);
 }
 
 export function replaceServer(state: CampaignState, server: Server): CampaignState {

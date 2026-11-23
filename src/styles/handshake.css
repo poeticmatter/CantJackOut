@@ -1,0 +1,122 @@
+/* The handshake: the connection sequence played over the run screen when you jack in. */
+.handshake {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 50%, rgba(20, 30, 60, 0.92), rgba(4, 4, 14, 0.97));
+  cursor: pointer;
+  animation: fade-in 200ms ease-out;
+}
+.handshake-panel {
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: 'Consolas', 'Cascadia Mono', ui-monospace, monospace;
+  color: #bfe9ff;
+}
+.handshake-target {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-display);
+}
+.handshake-target span {
+  color: var(--muted);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.handshake-target strong {
+  font-size: var(--step-4);
+  line-height: 1;
+  text-transform: capitalize;
+  color: var(--text);
+}
+.handshake-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 10.5em;
+}
+.handshake-log li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  animation: log-in 160ms ease-out;
+}
+.handshake-log em {
+  font-style: normal;
+  color: var(--green);
+}
+.handshake-log li.is-warning,
+.handshake-log li.is-warning em {
+  color: var(--danger);
+}
+.handshake-bar {
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(110, 214, 255, 0.1);
+  border: 1px solid rgba(110, 214, 255, 0.35);
+  overflow: hidden;
+}
+.handshake-fill {
+  width: 0;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #6ed6ff 0 10px, #3fa7ff 10px 14px);
+  box-shadow: 0 0 14px #6ed6ff;
+}
+.handshake-meta {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  color: var(--muted);
+}
+.handshake-percent {
+  color: #bfe9ff;
+}
+.handshake-clock {
+  margin-left: auto;
+  color: var(--amber);
+  font-size: var(--step-2);
+}
+.handshake-skip {
+  font-size: var(--step--1);
+  color: var(--muted);
+  opacity: 0.7;
+}
+.handshake-granted {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green);
+  text-shadow: 0 0 30px var(--green), -3px 0 rgba(255, 61, 110, 0.6), 3px 0 rgba(63, 167, 255, 0.6);
+  opacity: 0;
+}
+.handshake.is-granted .handshake-panel {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.handshake.is-granted .handshake-granted {
+  animation: granted 650ms ease-out forwards;
+}
+
+@keyframes log-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+@keyframes granted {
+  0% { opacity: 0; transform: scale(1.4); filter: blur(6px); }
+  30% { opacity: 1; transform: scale(1); filter: blur(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.96); }
+}

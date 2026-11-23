@@ -12,6 +12,8 @@ npm run build      # typecheck and production build
 npm run deploy     # build and publish to GitHub Pages (gh-pages branch)
 npm run stats      # exact Can't Stop statistics, the calibration target
 npm run calibrate [bias|servers|generation|meta N]   # balance tools
+python tools/pointcloud.py portrait ReferenceImages/Portrait.jpg src/assets/vesna.json   # rebuild Vesna's face (needs Pillow, numpy, scipy)
+python tools/pointcloud.py moth src/assets/moth.json                                     # rebuild Moth's emblem
 ```
 
 ## Architecture
@@ -22,7 +24,8 @@ A single-player, push-your-luck browser game in plain TypeScript and Vite, with 
   - `dice.ts`, `roll.ts`, `server.ts`, `run.ts`: dice, how a roll feeds files, servers, and a single run's state machine.
   - `campaign.ts`, `actions.ts`, `dawn.ts`, `shop.ts`: the campaign, run actions, Vesna's dawn payment, and the market and loadout.
   - `policy.ts`, `difficulty.ts`, `board.ts`: the reference push-your-luck player, simulated difficulty, and server generation and pricing.
-- `src/ui/`: DOM views built with the small `el()` helper. `app.ts` routes between screens; `runScreen.ts` stays mounted during a run so its dice animations aren't restarted.
+- `src/ui/`: DOM views built with the small `el()` helper. `app.ts` routes between screens and keeps open overlays mounted; `runScreen.ts` stays mounted during a run so its dice animations aren't restarted. `handshake.ts` and `fx.ts` are the run's connection sequence and particles; `characterCall.ts` and `pointCloud.ts` draw Vesna and Moth as live point clouds.
+- `tools/pointcloud.py`: turns a picture into the point-cloud JSON in `src/assets/`. Source photos live in `ReferenceImages/`, which is git-ignored: only the JSON ships.
 - `src/sim/`: balance scripts run with `tsx`.
 
 Server payouts are priced by simulating the reference player with the starting dice. After any change to dice, clock or server rules, rerun `npm run calibrate generation` and `npm run calibrate meta 100`, and record the results in the design log.

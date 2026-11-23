@@ -4,14 +4,15 @@ import { glyph } from './faceStyle';
 
 const RULES: readonly string[] = [
   'Pick a server and jack in. Each server holds one or two files, and each file has a color.',
+  'Every run starts with one block of each unfinished file at risk: a free one on a server you haven’t touched, otherwise the last block you banked there.',
   'Roll your dice. Every die that shows a file’s color downloads one block of that file.',
-  'Keep rolling to download more, or jack out to bank what you have. Banked blocks stay on the server for your next run.',
-  'Once you’re pulling data, a roll where no die matches an unfinished file gets you jacked out, and you lose everything unbanked from that run.',
+  'Keep rolling to download more, or jack out to bank everything at risk. A roll where no die matches an unfinished file jacks you out, and everything at risk is lost.',
+  'Mid-run, you can pay to reroute: bank what you have and keep going, without the handshake of a fresh visit.',
   'Download every file on a server to sell the data. Partial downloads are worth nothing.',
-  'You only see a server’s files once you connect. Before that, the reward is your only hint: bigger pays mean harder servers.',
+  'Every visit raises a server’s alert, and getting caught raises it twice. When it fills, the sysadmin wipes everything you banked there.',
   'Every run costs time: a random handshake, plus a few minutes per roll, plus recovery if you get caught. At dawn the night ends, wherever the clock lands.',
   `At each dawn Vesna takes her cut. Come up short and she takes everything plus a strike. ${MAX_STRIKES} strikes and she takes the deck. Survive ${FINAL_NIGHT} nights to own it.`,
-  'Spend money in the market between runs: more dice, programs, and reflashed faces.',
+  'Between runs, Moth’s back room sells more dice, programs and reflashed faces. “Upgrade dice” in your deck panel takes you straight to her bench.',
 ];
 
 export function renderHelp(onClose: () => void): HTMLElement {

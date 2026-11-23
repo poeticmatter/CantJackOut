@@ -1,8 +1,8 @@
 import { type CampaignState, isProgramReady, loadoutDice } from '../game/campaign';
-import { hitProbability } from '../game/dice';
+import { safeProbability } from '../game/dice';
 import { type Server, hasBankedProgress, openColors } from '../game/server';
 import { el, money, percent } from './dom';
-import { renderFileBar } from './towers';
+import { renderAlertMeter, renderFileBar } from './towers';
 
 const MODIFIER_TEXT = {
   blackIce: { name: 'Black ICE', summary: 'Flatlining here also burns one banked block from each unfinished file.' },
@@ -16,13 +16,14 @@ export interface ServerCardActions {
 
 function renderArchitecture(server: Server, state: CampaignState): HTMLElement {
   const colors = openColors(server, server.tracks.map(() => 0));
-  const odds = hitProbability(loadoutDice(state), colors);
+  const odds = safeProbability(loadoutDice(state), colors);
   return el('div', { className: 'card-architecture' }, [
     ...server.tracks.map(renderFileBar),
     server.modifiers.length > 0
       ? el('div', { className: 'card-mods' }, server.modifiers.map((modifier) =>
           el('span', { className: `chip chip-${modifier}`, text: MODIFIER_TEXT[modifier].name, attrs: { title: MODIFIER_TEXT[modifier].summary } })))
       : null,
+    renderAlertMeter(server),
     el('p', { className: 'card-odds', text: `Your deck hits ${percent(odds)} of rolls here` }),
   ]);
 }

@@ -5,12 +5,14 @@
 import { acceptFlatline, bankAndJackOut, jackIn, roll, useBounce, useFailsafe, waitForDawn } from '../game/actions';
 import { type CampaignState, isProgramReady, loadoutDice, newCampaign, vigForNight } from '../game/campaign';
 import { isDawn } from '../game/clock';
+import type { Color, Face } from '../game/dice';
 import { simulateDownload } from '../game/difficulty';
 import { settleDawn } from '../game/dawn';
 import { shouldKeepRolling } from '../game/policy';
 import { createRng } from '../game/random';
+import { liveServer } from '../game/run';
 import type { Server } from '../game/server';
-import { buyProgram, buySocket, nextSocketPrice, recolorFace } from '../game/shop';
+import { buyProgram, buySocket, flashFace, nextSocketPrice } from '../game/shop';
 
 const UNREVEALED_PAY_PER_MINUTE_GUESS = 1.3;
 const ESTIMATE_TRIALS = 40;
@@ -27,7 +29,9 @@ function estimateMinutes(state: CampaignState, server: Server): number {
   const rng = createRng(state.rngState ^ 0x5bd1e995);
   let total = 0;
   for (let trial = 0; trial < ESTIMATE_TRIALS; trial++) {
-    total += simulateDownload(server, { dice: loadoutDice(state), rng }).minutes;
+    const result = simulateDownload(server, { dice: loadoutDice(state), rng });
+    if (result === null) return Infinity;
+    total += result.minutes;
   }
   return total / ESTIMATE_TRIALS;
 }
@@ -58,7 +62,7 @@ function shop(state: CampaignState): CampaignState {
     } else if (affordable(250) && current.diceSockets >= 5) {
       const target = findGreenFaceToFlash(current);
       if (target === null) return current;
-      current = recolorFace(current, target.dieId, target.faceIndex, 'red');
+      current = flashFace(current, target.dieId, target.faceIndex, { kind: 'single', color: 'red' });
     } else {
       return current;
     }
@@ -67,11 +71,15 @@ function shop(state: CampaignState): CampaignState {
 
 function findGreenFaceToFlash(state: CampaignState): { dieId: string; faceIndex: number } | null {
   for (const die of state.dice) {
-    const reds = die.faces.filter((face) => face.color === 'red').length;
-    const faceIndex = die.faces.findIndex((face) => face.color === 'green');
+    const reds = die.faces.filter((face) => isSingleColor(face, 'red')).length;
+    const faceIndex = die.faces.findIndex((face) => isSingleColor(face, 'green'));
     if (reds < 2 && faceIndex >= 0) return { dieId: die.id, faceIndex };
   }
   return null;
+}
+
+function isSingleColor(face: Face, color: Color): boolean {
+  return face.kind === 'data' && face.colors.length === 1 && face.colors[0] === color;
 }
 
 function playRun(state: CampaignState): CampaignState {
@@ -84,7 +92,7 @@ function playRun(state: CampaignState): CampaignState {
       if (isProgramReady(current, 'bounce')) current = useBounce(current);
       else if (isProgramReady(current, 'failsafe')) current = useFailsafe(current);
       else current = acceptFlatline(current);
-    } else if (run.status === 'connected' || shouldKeepRolling({ server, buffer: run.buffer, dice: loadoutDice(current) })) {
+    } else if (run.status === 'connected' || shouldKeepRolling({ server: liveServer(server, run), buffer: run.buffer, dice: loadoutDice(current) })) {
       current = roll(current);
     } else {
       current = bankAndJackOut(current);

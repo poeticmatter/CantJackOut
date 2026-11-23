@@ -1,6 +1,7 @@
 import type { Die } from '../game/dice';
 import { el, prefersReducedMotion } from './dom';
-import { faceGlyph } from './faceStyle';
+import { faceContent } from './dieNet';
+import { describeFace, faceClasses } from './faceStyle';
 
 /** Where each face sits on the cube, and the cube rotation that brings it to the front. */
 const FACE_PLACEMENT = ['rotateY(0deg)', 'rotateY(90deg)', 'rotateY(180deg)', 'rotateY(-90deg)', 'rotateX(90deg)', 'rotateX(-90deg)'];
@@ -8,14 +9,15 @@ const SHOW_FACE: readonly (readonly [number, number])[] = [[0, 0], [0, -90], [0,
 const FULL_TURN = 360;
 const ROLL_MILLISECONDS = 950;
 
-export type DieMood = 'idle' | 'hit' | 'dud';
+export type DieMood = 'idle' | 'hit' | 'dud' | 'special';
 
 export interface DieView {
   readonly element: HTMLElement;
   readonly dieId: string;
   showFace(faceIndex: number): void;
   rollTo(faceIndex: number): Promise<void>;
-  setMood(mood: DieMood): void;
+  /** glow is a CSS color: the file the die fed, or the special face's own tone. */
+  setMood(mood: DieMood, glow?: string): void;
 }
 
 function nextTurnAbove(angle: number): number {
@@ -24,10 +26,7 @@ function nextTurnAbove(angle: number): number {
 
 export function createDieView(die: Die): DieView {
   const faces = die.faces.map((face, index) =>
-    el('div', { className: `die-face face-${face.color}`, style: { transform: `${FACE_PLACEMENT[index]} translateZ(var(--die-half))` } }, [
-      faceGlyph(face, 'die-glyph'),
-      face.boost === 2 ? el('span', { className: 'die-boost', text: '×2' }) : null,
-    ]),
+    el('div', { className: `die-face ${faceClasses(face)}`, style: { transform: `${FACE_PLACEMENT[index]} translateZ(var(--die-half))` } }, faceContent(face, 'die')),
   );
   const cube = el('div', { className: 'die' }, faces);
   const element = el('div', { className: 'die-scene', attrs: { role: 'img', 'aria-label': 'Die' } }, [cube, el('div', { className: 'die-shadow' })]);
@@ -40,8 +39,7 @@ export function createDieView(die: Die): DieView {
   };
 
   const label = () => {
-    const face = die.faces[shownFace];
-    element.setAttribute('aria-label', `Die showing ${face.color}${face.boost === 2 ? ' times two' : ''}`);
+    element.setAttribute('aria-label', `Die showing ${describeFace(die.faces[shownFace]).toLowerCase()}`);
   };
 
   return {
@@ -70,11 +68,11 @@ export function createDieView(die: Die): DieView {
       label();
       return new Promise((resolve) => window.setTimeout(resolve, prefersReducedMotion() ? 0 : ROLL_MILLISECONDS));
     },
-    setMood(mood) {
+    setMood(mood, glow = 'var(--amber)') {
       element.classList.toggle('is-hit', mood === 'hit');
+      element.classList.toggle('is-special', mood === 'special');
       element.classList.toggle('is-dud', mood === 'dud');
-      const face = die.faces[shownFace];
-      element.style.setProperty('--die-glow', `var(--${face.color})`);
+      element.style.setProperty('--die-glow', glow);
     },
   };
 }

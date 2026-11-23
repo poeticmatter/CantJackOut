@@ -1,0 +1,147 @@
+/* Calls: someone on an encrypted line, as a point-cloud face beside a typing transcript. */
+.main-slot,
+.overlay-slot {
+  display: contents;
+}
+
+.call {
+  --call-tone: var(--vesna);
+  position: relative;
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 20% 40%, color-mix(in srgb, var(--call-tone) 12%, transparent), transparent 60%), #050817;
+  border: 1px solid color-mix(in srgb, var(--call-tone) 45%, transparent);
+  border-radius: var(--radius);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--call-tone) 18%, transparent), 0 30px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.call::after {
+  /* Scanlines over the whole transmission. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px);
+}
+.call-moth {
+  --call-tone: var(--amber);
+}
+.call-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--call-tone) 25%, transparent);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--call-tone);
+}
+.call-rec {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+  animation: rec-blink 1.2s steps(2, end) infinite;
+}
+.call-body {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 8px 20px;
+  padding: 16px 20px 20px 8px;
+  align-items: center;
+}
+.call-face {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+}
+.call-face-loading {
+  font-family: var(--font-display);
+  color: var(--call-tone);
+  opacity: 0.6;
+  animation: rec-blink 0.8s steps(2, end) infinite;
+}
+.call-words {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.call-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 7.5em;
+  font-family: 'Consolas', 'Cascadia Mono', ui-monospace, monospace;
+  font-size: var(--step-1);
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--call-tone) 35%, #ffffff);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--call-tone) 55%, transparent);
+  cursor: pointer;
+}
+.call-line:empty {
+  display: none;
+}
+.call-transcript:not(.is-done) .call-line:not(:empty):last-of-type::after,
+.call-transcript:not(.is-done) .call-line:not(:empty):has(+ .call-line:empty)::after {
+  content: '▌';
+  animation: rec-blink 0.7s steps(2, end) infinite;
+}
+.call-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.call-actions:empty {
+  display: none;
+}
+.call-actions .btn {
+  font-size: var(--step-1);
+}
+
+/* A compact strip, for Moth at the top of the market. */
+.call-compact {
+  width: 100%;
+}
+.call-compact .call-body {
+  grid-template-columns: 190px minmax(0, 1fr);
+  padding: 4px 16px 4px 4px;
+}
+.call-compact .call-face {
+  min-height: 130px;
+}
+.call-compact .call-transcript {
+  min-height: 0;
+  font-size: var(--step-0);
+}
+
+.overlay-call {
+  place-items: center;
+}
+.dawn-screen .call {
+  z-index: 1;
+}
+.dawn-screen {
+  align-content: center;
+  gap: 14px;
+}
+.dawn-time {
+  z-index: 1;
+}
+
+@keyframes rec-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .call-body {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 12px;
+  }
+}

@@ -39,6 +39,8 @@ beforeEach(() => {
   localStorage.clear();
   // jsdom has no matchMedia; reporting reduced motion makes every animation resolve instantly.
   window.matchMedia = (query: string) => ({ matches: true, media: query }) as MediaQueryList;
+  // jsdom has no canvas either; the game already draws nothing when a canvas has no context.
+  HTMLCanvasElement.prototype.getContext = () => null;
 });
 
 describe('app', () => {
@@ -74,5 +76,19 @@ describe('app', () => {
     buttonLabelled(root, 'Got it')?.click();
     buttonLabelled(root, 'Market')?.click();
     expect(root.querySelector('.market')).not.toBeNull();
+  });
+
+  it('has Vesna call at the start of the night', () => {
+    const root = mountApp();
+    buttonLabelled(root, 'Got it')?.click();
+    expect(root.querySelector('.call-vesna')).not.toBeNull();
+  });
+
+  it('takes a die from the deck panel straight to the bench', () => {
+    const root = mountApp();
+    buttonLabelled(root, 'Got it')?.click();
+    buttonLabelled(root, 'Get to work')?.click();
+    buttonLabelled(root, 'Flash faces')?.click();
+    expect(root.querySelector('.bench-die.is-selected')).not.toBeNull();
   });
 });

@@ -16,6 +16,8 @@
   --blue: #3fa7ff;
   --green: #39f0a0;
   --wild: #f4eeff;
+  --firewall: #9fe8ff;
+  --vesna: #6ed6ff;
 
   --font-display: 'Chakra Petch', 'Bahnschrift', 'Segoe UI', sans-serif;
   --font-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
@@ -101,6 +103,22 @@ strong {
 .face-wild {
   --tone: var(--wild);
 }
+/* A dual face glows the mix of its two colors. */
+.face-red-blue {
+  --tone: color-mix(in srgb, var(--red) 50%, var(--blue));
+}
+.face-red-green {
+  --tone: color-mix(in srgb, var(--red) 50%, var(--green));
+}
+.face-blue-green {
+  --tone: color-mix(in srgb, var(--blue) 50%, var(--green));
+}
+.face-firewall {
+  --tone: var(--firewall);
+}
+.face-payday {
+  --tone: var(--amber);
+}
 
 .glyph {
   width: 1em;
@@ -118,6 +136,28 @@ strong {
 .glyph-wild {
   fill: var(--wild);
   filter: drop-shadow(0 0 3px #ff7ad9) drop-shadow(0 0 5px #7ad7ff);
+}
+.glyph-firewall {
+  fill: var(--firewall);
+}
+.glyph-payday {
+  fill: var(--amber);
+}
+/* Strokes and lettering cut into a filled glyph. */
+.glyph .glyph-cut {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 9;
+}
+.glyph .glyph-cut-text {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 46px;
+}
+.anchor-mark {
+  stroke: var(--amber);
+  fill: var(--amber);
 }
 
 /* Buttons ------------------------------------------------------------------ */

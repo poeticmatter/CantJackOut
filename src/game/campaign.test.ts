@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { jackIn, waitForDawn } from './actions';
-import { type CampaignState, MAX_STRIKES, newCampaign, vigForNight } from './campaign';
+import { jackIn, reroutePrice, rerouteRun, waitForDawn } from './actions';
+import { type CampaignState, MAX_STRIKES, findServer, newCampaign, vigForNight } from './campaign';
 import { settleDawn } from './dawn';
-import { buySocket, buySpareDie, recolorFace, toggleDieInLoadout } from './shop';
+import { colorFace } from './dice';
+import { anchorFace, buySocket, buySpareDie, flashFace, toggleDieInLoadout } from './shop';
 
 const fresh = (): CampaignState => newCampaign(42);
 
@@ -34,6 +35,17 @@ describe('jacking in', () => {
   });
 });
 
+describe('rerouting', () => {
+  it('charges the reroute price for the server', () => {
+    const start = { ...fresh(), money: 500 };
+    const connected = jackIn(start, start.board[0].id, false);
+    if (connected.run === null) throw new Error('Jacking in should start a run');
+    const afterHit = { ...connected, run: { ...connected.run, buffer: connected.run.buffer.map((steps) => steps + 1), status: 'hit' as const } };
+    const rerouted = rerouteRun(afterHit);
+    expect(afterHit.money - rerouted.money).toBe(reroutePrice(findServer(afterHit, connected.run.serverId)));
+  });
+});
+
 describe('shop and loadout', () => {
   it('seats a standard die in a newly bought socket', () => {
     const next = buySocket({ ...fresh(), money: 1000 });
@@ -46,9 +58,25 @@ describe('shop and loadout', () => {
 
   it('flashes a face to a new color', () => {
     const state = { ...fresh(), money: 1000 };
-    const dieId = state.dice[0].id;
-    const next = recolorFace(state, dieId, 5, 'red');
-    expect(next.dice[0].faces[5].color).toBe('red');
+    const next = flashFace(state, state.dice[0].id, 5, { kind: 'single', color: 'red' });
+    expect(next.dice[0].faces[5]).toEqual(colorFace('red'));
+  });
+
+  it('charges a dual-color face the price of both its colors', () => {
+    const state = { ...fresh(), money: 1000 };
+    const next = flashFace(state, state.dice[0].id, 5, { kind: 'dual', colors: ['red', 'blue'] });
+    expect(state.money - next.money).toBe(370);
+  });
+
+  it('keeps an anchor when the face changes color', () => {
+    const state = anchorFace({ ...fresh(), money: 1000 }, fresh().dice[0].id, 5);
+    const next = flashFace(state, state.dice[0].id, 5, { kind: 'single', color: 'red' });
+    expect(next.dice[0].faces[5]).toEqual({ ...colorFace('red'), isAnchored: true });
+  });
+
+  it('refuses to anchor a face that never downloads', () => {
+    const state = flashFace({ ...fresh(), money: 1000 }, fresh().dice[0].id, 5, { kind: 'payday' });
+    expect(() => anchorFace(state, state.dice[0].id, 5)).toThrow(/downloads data/);
   });
 
   it('refuses to seat more dice than the deck has sockets', () => {

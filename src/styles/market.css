@@ -1,0 +1,260 @@
+/* Moth's back room: a bench for your dice and a cabinet of program chips. */
+.market {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--edge-bright));
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 182, 72, 0.08), transparent 60%), var(--smoke-solid);
+}
+.bench {
+  padding: 18px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(58, 40, 22, 0.35), rgba(20, 14, 30, 0.6)), repeating-linear-gradient(90deg, rgba(255, 182, 72, 0.03) 0 2px, transparent 2px 22px);
+  border: 1px solid rgba(255, 182, 72, 0.25);
+  box-shadow: inset 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.bench-dice {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.bench-die {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--edge);
+  background: rgba(10, 8, 22, 0.6);
+}
+.bench-die.is-selected {
+  border-color: var(--amber);
+  box-shadow: 0 0 18px rgba(255, 182, 72, 0.25);
+}
+.bench-die-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step--1);
+}
+.bench-die small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+.bench .die-net {
+  grid-template-columns: repeat(3, 34px);
+  gap: 5px;
+}
+.bench .net-face {
+  width: 34px;
+  height: 34px;
+}
+.bench button.net-face:hover {
+  border-color: var(--amber);
+  box-shadow: 0 0 10px rgba(255, 182, 72, 0.35);
+}
+.bench .net-glyph {
+  width: 20px;
+  height: 20px;
+}
+
+.flash-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.flash-menu h4 {
+  font-size: var(--step--1);
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.flash-target {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--amber);
+}
+.flash-target.is-waiting {
+  color: var(--text);
+  animation: nudge 2.4s ease-in-out infinite;
+}
+.design-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 6px;
+}
+.design-grid.is-upgrades {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.design {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 7px 9px;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.design:hover:not(:disabled) {
+  border-color: var(--amber);
+}
+.design:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.design.is-current {
+  border-color: var(--edge-bright);
+  opacity: 0.8;
+}
+.design-face {
+  grid-row: span 2;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tone) 14%, #120e28);
+  border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
+}
+.design-glyph {
+  width: 18px;
+  height: 18px;
+}
+.design-boost,
+.design-anchor {
+  display: none;
+}
+.design-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--step--1);
+}
+.design-price {
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  color: var(--amber);
+}
+.design-upgrade {
+  grid-template-columns: 1fr auto;
+}
+.design-blurb {
+  grid-column: 1;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.design-upgrade .design-price {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.market-side {
+  display: flex;
+  flex-direction: column;
+}
+.chip-cabinet {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.chip-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px 12px;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #1d3328, #0f1d18);
+  border: 1px solid #2f6b4f;
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25);
+}
+.chip-card-pins {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: -5px;
+  height: 6px;
+  background: repeating-linear-gradient(90deg, #d9b46a 0 4px, transparent 4px 9px);
+}
+.chip-card h4 {
+  font-size: var(--step-0);
+  color: #d8ffe9;
+}
+.chip-card p {
+  font-size: 0.74rem;
+  color: #a6cdb8;
+}
+.chip-card small {
+  font-size: 0.7rem;
+  color: #7fb79a;
+}
+.chip-card .btn-buy,
+.chip-card .offer-done {
+  align-self: flex-start;
+  margin-top: auto;
+}
+.chip-card.is-owned {
+  opacity: 0.6;
+}
+
+/* Deck panel entry points into the bench. */
+.deck-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.btn-upgrade {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(255, 182, 72, 0.08);
+}
+.die-tile {
+  cursor: default;
+}
+.die-tile-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.die-tile-upgrade {
+  width: 100%;
+  padding: 3px 0;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 182, 72, 0.35);
+  background: rgba(255, 182, 72, 0.06);
+  color: var(--amber);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.die-tile-upgrade:hover {
+  background: rgba(255, 182, 72, 0.16);
+}
+.net-anchor {
+  position: absolute;
+  left: -5px;
+  bottom: -5px;
+  width: 13px;
+  height: 13px;
+  filter: drop-shadow(0 0 2px #000);
+}
+
+@keyframes nudge {
+  50% {
+    color: var(--amber);
+  }
+}

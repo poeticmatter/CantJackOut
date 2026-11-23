@@ -40,7 +40,7 @@
 }
 .market-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 28px;
 }
 .market-section {
@@ -89,75 +89,6 @@
   border-color: var(--amber);
   color: var(--amber);
   background: rgba(255, 182, 72, 0.08);
-}
-
-.lab-dice {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 8px;
-}
-.lab-die {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 6px;
-  border-radius: var(--radius-small);
-  border: 1px solid var(--edge);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--step--1);
-  cursor: pointer;
-}
-.lab-die small {
-  color: var(--muted);
-  font-size: 0.7rem;
-  text-align: center;
-}
-.lab-die.is-selected {
-  border-color: var(--amber);
-  background: rgba(255, 182, 72, 0.07);
-}
-.lab-bench {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--edge-bright);
-  border-radius: var(--radius-small);
-  background: rgba(255, 255, 255, 0.03);
-}
-.lab-bench .die-net {
-  grid-template-columns: repeat(6, 40px);
-  gap: 6px;
-}
-.lab-bench .net-face {
-  width: 40px;
-  height: 40px;
-}
-.lab-bench .net-glyph {
-  width: 22px;
-  height: 22px;
-}
-.face-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-}
-.btn-flash {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--step--1);
-}
-.btn-flash small {
-  margin-left: auto;
-  color: var(--amber);
-}
-.flash-glyph {
-  width: 16px;
-  height: 16px;
 }
 
 /* Help ------------------------------------------------------------------------- */
@@ -277,8 +208,5 @@
 @media (max-width: 860px) {
   .market-columns {
     grid-template-columns: 1fr;
-  }
-  .lab-bench .die-net {
-    grid-template-columns: repeat(3, 40px);
   }
 }

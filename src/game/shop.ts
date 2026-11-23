@@ -1,5 +1,7 @@
 import { type CampaignState, allocateId, findDie } from './campaign';
-import { type Die, type FaceColor, createStandardDie, replaceFace } from './dice';
+import {
+  COLORS, type Color, type DataFace, type Die, FIREWALL_FACE, type Face, PAYDAY_FACE, colorFace, createStandardDie, replaceFace,
+} from './dice';
 import { PROGRAMS, type ProgramId } from './programs';
 
 export const MAX_DICE_SOCKETS = 6;
@@ -8,9 +10,65 @@ const SOCKET_PRICES: Record<number, number> = { 4: 450, 5: 1000, 6: 2000 };
 const PROGRAM_SLOT_PRICES: Record<number, number> = { 2: 600, 3: 1400 };
 export const SPARE_DIE_PRICE = 200;
 export const OVERCLOCK_PRICE = 350;
+export const ANCHOR_PRICE = 300;
 
-/** Rarer colors cost more to flash onto a face; a wild face matches anything. */
-export const RECOLOR_PRICES: Record<FaceColor, number> = { green: 60, blue: 120, red: 250, wild: 600 };
+/** Rarer colors cost more to flash onto a face. A dual-color face costs both its colors. */
+const COLOR_PRICES: Record<Color, number> = { green: 60, blue: 120, red: 250 };
+const WILD_PRICE = 600;
+const FIREWALL_PRICE = 350;
+const PAYDAY_PRICE = 200;
+
+/** What a face can be reflashed into at the dice maker's bench. */
+export type FaceDesign =
+  | { readonly kind: 'single'; readonly color: Color }
+  | { readonly kind: 'dual'; readonly colors: readonly [Color, Color] }
+  | { readonly kind: 'wild' }
+  | { readonly kind: 'firewall' }
+  | { readonly kind: 'payday' };
+
+export const FACE_DESIGNS: readonly FaceDesign[] = [
+  ...COLORS.map((color): FaceDesign => ({ kind: 'single', color })),
+  { kind: 'dual', colors: ['red', 'blue'] },
+  { kind: 'dual', colors: ['red', 'green'] },
+  { kind: 'dual', colors: ['blue', 'green'] },
+  { kind: 'wild' },
+  { kind: 'firewall' },
+  { kind: 'payday' },
+];
+
+export function designPrice(design: FaceDesign): number {
+  switch (design.kind) {
+    case 'single': return COLOR_PRICES[design.color];
+    case 'dual': return COLOR_PRICES[design.colors[0]] + COLOR_PRICES[design.colors[1]];
+    case 'wild': return WILD_PRICE;
+    case 'firewall': return FIREWALL_PRICE;
+    case 'payday': return PAYDAY_PRICE;
+  }
+}
+
+function designColors(design: FaceDesign): readonly Color[] | null {
+  switch (design.kind) {
+    case 'single': return [design.color];
+    case 'dual': return design.colors;
+    case 'wild': return COLORS;
+    default: return null;
+  }
+}
+
+/** The face a design produces. A data face keeps its overclock and anchor when it changes color. */
+export function faceFromDesign(design: FaceDesign, previous: Face): Face {
+  if (design.kind === 'firewall') return FIREWALL_FACE;
+  if (design.kind === 'payday') return PAYDAY_FACE;
+  const colors = designColors(design) ?? [];
+  const recolored = colorFace(...colors);
+  return previous.kind === 'data' ? { ...recolored, boost: previous.boost, isAnchored: previous.isAnchored } : recolored;
+}
+
+export function isFaceOfDesign(face: Face, design: FaceDesign): boolean {
+  if (face.kind !== 'data') return face.kind === design.kind;
+  const colors = designColors(design);
+  return colors !== null && colors.length === face.colors.length && colors.every((color) => face.colors.includes(color));
+}
 
 export function canShop(state: CampaignState): boolean {
   return state.phase === 'net';
@@ -70,18 +128,31 @@ function updateDie(state: CampaignState, dieId: string, update: (die: Die) => Di
   return { ...state, dice: state.dice.map((die) => (die.id === dieId ? update(die) : die)) };
 }
 
-export function recolorFace(state: CampaignState, dieId: string, faceIndex: number, color: FaceColor): CampaignState {
+export function flashFace(state: CampaignState, dieId: string, faceIndex: number, design: FaceDesign): CampaignState {
   const face = findDie(state, dieId).faces[faceIndex];
-  if (face.color === color) throw new Error('That face is already that color');
-  const paid = pay(state, RECOLOR_PRICES[color], 'Flashing a face');
-  return updateDie(paid, dieId, (die) => replaceFace(die, faceIndex, { ...face, color }));
+  if (isFaceOfDesign(face, design)) throw new Error('That face is already flashed that way');
+  const paid = pay(state, designPrice(design), 'Flashing a face');
+  return updateDie(paid, dieId, (die) => replaceFace(die, faceIndex, faceFromDesign(design, face)));
+}
+
+function dataFaceAt(state: CampaignState, dieId: string, faceIndex: number, upgrade: string): DataFace {
+  const face = findDie(state, dieId).faces[faceIndex];
+  if (face.kind !== 'data') throw new Error(`Only a face that downloads data can be ${upgrade}`);
+  return face;
 }
 
 export function overclockFace(state: CampaignState, dieId: string, faceIndex: number): CampaignState {
-  const face = findDie(state, dieId).faces[faceIndex];
+  const face = dataFaceAt(state, dieId, faceIndex, 'overclocked');
   if (face.boost === 2) throw new Error('That face is already overclocked');
   const paid = pay(state, OVERCLOCK_PRICE, 'Overclocking a face');
   return updateDie(paid, dieId, (die) => replaceFace(die, faceIndex, { ...face, boost: 2 }));
+}
+
+export function anchorFace(state: CampaignState, dieId: string, faceIndex: number): CampaignState {
+  const face = dataFaceAt(state, dieId, faceIndex, 'anchored');
+  if (face.isAnchored) throw new Error('That face is already anchored');
+  const paid = pay(state, ANCHOR_PRICE, 'Anchoring a face');
+  return updateDie(paid, dieId, (die) => replaceFace(die, faceIndex, { ...face, isAnchored: true }));
 }
 
 export function toggleDieInLoadout(state: CampaignState, dieId: string): CampaignState {

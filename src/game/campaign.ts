@@ -12,7 +12,7 @@ const STARTING_MONEY = 100;
 const STARTING_PROGRAM_SLOTS = 1;
 
 /** Vesna's cut, due at each dawn. Tuned by `npm run calibrate meta`. */
-export const VIG_BY_NIGHT: readonly number[] = [150, 250, 400, 600, 850, 1100, 1400, 1700, 2050, 2450];
+export const VIG_BY_NIGHT: readonly number[] = [200, 325, 500, 750, 1075, 1400, 1775, 2175, 2600, 3125];
 
 export type Phase = 'net' | 'run' | 'dawn' | 'won' | 'lost';
 
@@ -25,9 +25,12 @@ export interface RunReport {
   readonly serverName: string;
   readonly ending: RunEnding;
   readonly minutes: number;
-  readonly stepsBanked: number;
+  /** Change in banked blocks across the server; negative when a flatline cost you your stake. */
+  readonly blocksGained: number;
   readonly payout: number;
+  readonly paydayCash: number;
   readonly iceBurned: boolean;
+  readonly isPurged: boolean;
   /** Kept so the run screen can replay the final roll after the run has closed. */
   readonly finalRun: RunState;
   /** The server as it was when the run started; a downloaded server leaves the board. */

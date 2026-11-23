@@ -2,7 +2,8 @@ import { type CampaignState, newCampaign } from '../game/campaign';
 import { showToast } from './toast';
 
 const SAVE_KEY = 'cant-jack-out:save';
-const SAVE_VERSION = 1;
+/** Version 2: stakes, server alert and the new die faces changed the shape of a save. */
+const SAVE_VERSION = 2;
 
 interface SaveFile {
   readonly version: number;

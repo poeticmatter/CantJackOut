@@ -1,5 +1,5 @@
 import { DUMPSHOCK_MINUTES } from './clock';
-import { type Die, expectedProgress, hitProbability } from './dice';
+import { type Die, expectedProgress, safeProbability } from './dice';
 import { type Buffer, type Server, hasModifier, openColors, remainingSteps } from './server';
 
 /**
@@ -14,14 +14,15 @@ const MINUTES_PER_STEP_ESTIMATE = 25;
 const DUMPSHOCK_STEP_COST = (DUMPSHOCK_MINUTES.min + DUMPSHOCK_MINUTES.max) / 2 / MINUTES_PER_STEP_ESTIMATE;
 
 export interface RollDecisionInput {
+  /** The server as the run sees it, with the run's own banked blocks. */
   readonly server: Server;
   readonly buffer: Buffer;
   readonly dice: readonly Die[];
 }
 
-/** Probability the next roll scores on at least one unfinished file. */
-export function nextHitProbability({ server, buffer, dice }: RollDecisionInput): number {
-  return hitProbability(dice, openColors(server, buffer));
+/** Probability the next roll doesn't get you caught: it scores on an unfinished file, or a Firewall face blocks the miss. */
+export function nextSafeProbability({ server, buffer, dice }: RollDecisionInput): number {
+  return safeProbability(dice, openColors(server, buffer));
 }
 
 /** Expected steps from one more roll, capped by what each file can still take. */
@@ -42,6 +43,6 @@ export function expectedMissCost(input: RollDecisionInput): number {
 /** Reference push-your-luck rule used to price servers and drive the balance bots. */
 export function shouldKeepRolling(input: RollDecisionInput, riskAppetite = REFERENCE_RISK_APPETITE): boolean {
   if (input.buffer.every((steps) => steps === 0)) return true;
-  const missChance = 1 - nextHitProbability(input);
+  const missChance = 1 - nextSafeProbability(input);
   return expectedCappedGain(input) * riskAppetite > missChance * expectedMissCost(input);
 }

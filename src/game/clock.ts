@@ -12,6 +12,8 @@ export const HANDSHAKE_MINUTES = { min: 30, max: 60 } as const;
 export const MINUTES_PER_ROLL = 4;
 export const DUMPSHOCK_MINUTES = { min: 20, max: 40 } as const;
 export const TRACER_EXTRA_MINUTES = 30;
+/** Rerouting banks the download in place: cheaper in time than a fresh handshake, but it costs cash. */
+export const REROUTE_MINUTES = 15;
 
 export function rollHandshakeMinutes(rng: Rng): number {
   return randomInt(rng, HANDSHAKE_MINUTES.min, HANDSHAKE_MINUTES.max);

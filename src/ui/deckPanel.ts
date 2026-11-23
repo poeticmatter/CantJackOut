@@ -6,20 +6,25 @@ import { dieLabel, dieSummary, renderDieNet } from './dieNet';
 
 export interface DeckPanelActions {
   readonly onToggleDie: (dieId: string) => void;
+  /** Opens the dice maker's bench with this die on it, or with no die picked yet. */
+  readonly onUpgradeDie: (dieId: string | null) => void;
   readonly onToggleProgram: (program: ProgramId) => void;
   readonly onToggleProxy: () => void;
   readonly onWaitForDawn: () => void;
 }
 
-function dieTile(die: Die, isSeated: boolean, onToggle: () => void): HTMLElement {
-  return el('button', {
-    className: `die-tile${isSeated ? ' is-seated' : ''}`,
-    attrs: { type: 'button', 'aria-pressed': String(isSeated), title: isSeated ? 'Pull this die from the deck' : 'Seat this die in the deck' },
-    onClick: onToggle,
-  }, [
-    el('span', { className: 'die-tile-name', text: dieLabel(die) }),
-    renderDieNet(die),
-    el('span', { className: 'die-tile-summary', text: dieSummary(die) }),
+function dieTile(die: Die, isSeated: boolean, actions: DeckPanelActions): HTMLElement {
+  return el('div', { className: `die-tile${isSeated ? ' is-seated' : ''}` }, [
+    el('button', {
+      className: 'die-tile-seat',
+      attrs: { type: 'button', 'aria-pressed': String(isSeated), title: isSeated ? 'Pull this die from the deck' : 'Seat this die in the deck' },
+      onClick: () => actions.onToggleDie(die.id),
+    }, [
+      el('span', { className: 'die-tile-name', text: dieLabel(die) }),
+      renderDieNet(die),
+      el('span', { className: 'die-tile-summary', text: dieSummary(die) }),
+    ]),
+    el('button', { className: 'die-tile-upgrade', text: 'Flash faces', attrs: { type: 'button', title: `Take ${dieLabel(die)} to Moth’s bench` }, onClick: () => actions.onUpgradeDie(die.id) }),
   ]);
 }
 
@@ -29,10 +34,13 @@ function renderSockets(state: CampaignState, actions: DeckPanelActions): HTMLEle
   const emptySockets = Array.from({ length: state.diceSockets - seated.length }, () =>
     el('div', { className: 'die-tile is-empty', text: 'Empty socket' }));
   return el('section', { className: 'deck-section' }, [
-    el('h2', { className: 'deck-heading', text: `Dice ${seated.length} of ${state.diceSockets} sockets` }),
-    el('div', { className: 'die-tiles' }, [...seated.map((die) => dieTile(die, true, () => actions.onToggleDie(die.id))), ...emptySockets]),
+    el('div', { className: 'deck-heading-row' }, [
+      el('h2', { className: 'deck-heading', text: `Dice ${seated.length} of ${state.diceSockets} sockets` }),
+      el('button', { className: 'btn btn-small btn-upgrade', text: 'Upgrade dice', attrs: { type: 'button' }, onClick: () => actions.onUpgradeDie(null) }),
+    ]),
+    el('div', { className: 'die-tiles' }, [...seated.map((die) => dieTile(die, true, actions)), ...emptySockets]),
     spare.length > 0 ? el('h3', { className: 'deck-subheading', text: 'Spare dice' }) : null,
-    spare.length > 0 ? el('div', { className: 'die-tiles' }, spare.map((die) => dieTile(die, false, () => actions.onToggleDie(die.id)))) : null,
+    spare.length > 0 ? el('div', { className: 'die-tiles' }, spare.map((die) => dieTile(die, false, actions))) : null,
   ]);
 }
 

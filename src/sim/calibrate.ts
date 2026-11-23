@@ -22,6 +22,8 @@ function testServer(tracks: [Color, number][], modifiers: ServerModifier[] = [])
     tracks: tracks.map(([color, length]) => ({ color, length, banked: 0 })),
     modifiers,
     isRevealed: true,
+    alert: 0,
+    alertLimit: Number.MAX_SAFE_INTEGER,
   };
 }
 
@@ -31,18 +33,28 @@ function describe(server: Server, riskAppetite?: number): string {
   return `${server.id.padEnd(22)} runs ${result.runs.toFixed(2).padStart(5)}  minutes ${result.minutes.toFixed(0).padStart(4)}  flatlined ${flatlineRate.toFixed(0).padStart(2)}%`;
 }
 
+const GENERATED_PER_TIER = 30;
+
 function reportGeneration(): void {
   const rng = createRng(99);
   for (let tier = 1; tier <= 5; tier++) {
     const started = performance.now();
-    const servers = Array.from({ length: 30 }, (_, index) => generateServer(`t${tier}-${index}`, tier, rng));
+    const servers = Array.from({ length: GENERATED_PER_TIER }, (_, index) =>
+      generateServer(`t${tier}-${index}`, tier, rng, { allowsLoneRed: true }));
     const msEach = (performance.now() - started) / servers.length;
-    const runs = servers.map((server) => averageDownload(server, 400, 3).runs).sort((a, b) => a - b);
+    const measured = servers.map((server) => ({ server, ...averageDownload(server, 400, 3) }));
+    const runs = measured.map((entry) => entry.runs).sort((a, b) => a - b);
     const rewards = servers.map((server) => server.reward).sort((a, b) => a - b);
+    const limits = servers.map((server) => server.alertLimit).sort((a, b) => a - b);
     const shapes = new Set(servers.map((server) => server.tracks.map((track) => track.color[0] + track.length).join('+')));
+    const loneRed = measured.filter((entry) => entry.server.tracks.length === 1 && entry.server.tracks[0].color === 'red');
+    const loneRedRate = loneRed.length === 0
+      ? 'none'
+      : `$${(loneRed.reduce((sum, entry) => sum + entry.server.reward / entry.minutes, 0) / loneRed.length).toFixed(2)}/min over ${loneRed.length}`;
     console.log(
-      `tier ${tier}: runs ${runs[0].toFixed(1)}-${runs[runs.length - 1].toFixed(1)} (median ${runs[15].toFixed(1)})` +
-        `  reward $${rewards[0]}-$${rewards[rewards.length - 1]}  ${msEach.toFixed(0)}ms each  e.g. ${[...shapes].slice(0, 5).join(', ')}`,
+      `tier ${tier}: runs ${runs[0].toFixed(1)}-${runs[runs.length - 1].toFixed(1)} (median ${runs[Math.floor(runs.length / 2)].toFixed(1)})` +
+        `  reward $${rewards[0]}-$${rewards[rewards.length - 1]}  alert limit ${limits[0]}-${limits[limits.length - 1]}` +
+        `  lone red ${loneRedRate}  ${msEach.toFixed(0)}ms each\n        e.g. ${[...shapes].slice(0, 6).join(', ')}`,
     );
   }
 }

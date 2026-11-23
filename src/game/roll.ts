@@ -1,4 +1,4 @@
-import { type Die, type Face, rollFaceIndex } from './dice';
+import { type DataFace, type Die, type Face, rollFaceIndex } from './dice';
 import type { Rng } from './random';
 import { type Buffer, type Server, remainingSteps } from './server';
 
@@ -13,8 +13,14 @@ export interface DieResult {
 
 export interface RollOutcome {
   readonly results: readonly DieResult[];
+  /** Unbanked blocks per track after the roll. */
   readonly buffer: Buffer;
+  /** Blocks anchored faces banked on the spot this roll, per track. */
+  readonly anchored: Buffer;
   readonly isHit: boolean;
+  /** A miss that a Firewall face blocked. */
+  readonly isBlocked: boolean;
+  readonly paydays: number;
 }
 
 export function rollDice(dice: readonly Die[], rng: Rng): number[] {
@@ -22,57 +28,58 @@ export function rollDice(dice: readonly Die[], rng: Rng): number[] {
 }
 
 /**
- * Applies rolled faces to the server. Colored faces feed their own track first;
- * wild faces then go to whichever open track still needs the most steps.
+ * Applies rolled faces to the server. Faces with fewer colors place first, so a single-color
+ * face feeds its own file before dual-color and wild faces pick the neediest file they match.
  * A track that fills up mid-roll stops accepting dice.
  */
-export function resolveRoll(
-  server: Server,
-  buffer: Buffer,
-  dice: readonly Die[],
-  faceIndexes: readonly number[],
-): RollOutcome {
+export function resolveRoll(server: Server, buffer: Buffer, dice: readonly Die[], faceIndexes: readonly number[]): RollOutcome {
   const nextBuffer = [...buffer];
+  const anchored = server.tracks.map(() => 0);
   const results: (DieResult | null)[] = dice.map(() => null);
-  const needOf = (trackIndex: number) => remainingSteps(server.tracks[trackIndex], nextBuffer[trackIndex]);
+  const needOf = (trackIndex: number) => remainingSteps(server.tracks[trackIndex], nextBuffer[trackIndex] + anchored[trackIndex]);
+  const faceOf = (dieIndex: number) => dice[dieIndex].faces[faceIndexes[dieIndex]];
 
-  const feed = (dieIndex: number, trackIndex: number | null) => {
-    const die = dice[dieIndex];
-    const face = die.faces[faceIndexes[dieIndex]];
-    const gain = trackIndex === null ? 0 : Math.min(face.boost, needOf(trackIndex));
-    if (trackIndex !== null) nextBuffer[trackIndex] += gain;
-    results[dieIndex] = { dieId: die.id, faceIndex: faceIndexes[dieIndex], face, trackIndex: gain > 0 ? trackIndex : null, gain };
+  const neediestMatch = (face: DataFace): number | null => {
+    let best: number | null = null;
+    server.tracks.forEach((track, index) => {
+      if (!face.colors.includes(track.color) || needOf(index) === 0) return;
+      if (best === null || needOf(index) > needOf(best)) best = index;
+    });
+    return best;
   };
 
-  dice.forEach((die, dieIndex) => {
-    const face = die.faces[faceIndexes[dieIndex]];
-    if (face.color === 'wild') return;
-    const trackIndex = server.tracks.findIndex((track) => track.color === face.color);
-    feed(dieIndex, trackIndex >= 0 && needOf(trackIndex) > 0 ? trackIndex : null);
-  });
-
-  dice.forEach((die, dieIndex) => {
-    if (die.faces[faceIndexes[dieIndex]].color !== 'wild') return;
-    feed(dieIndex, neediestTrack(server, nextBuffer));
-  });
+  const placementOrder = dice
+    .map((_, dieIndex) => dieIndex)
+    .sort((a, b) => colorCount(faceOf(a)) - colorCount(faceOf(b)));
+  for (const dieIndex of placementOrder) {
+    const face = faceOf(dieIndex);
+    const trackIndex = face.kind === 'data' ? neediestMatch(face) : null;
+    const gain = face.kind === 'data' && trackIndex !== null ? Math.min(face.boost, needOf(trackIndex)) : 0;
+    if (face.kind === 'data' && trackIndex !== null) {
+      if (face.isAnchored) anchored[trackIndex] += gain;
+      else nextBuffer[trackIndex] += gain;
+    }
+    results[dieIndex] = { dieId: dice[dieIndex].id, faceIndex: faceIndexes[dieIndex], face, trackIndex: gain > 0 ? trackIndex : null, gain };
+  }
 
   const finalResults = results.map((result) => {
     if (result === null) throw new Error('Every die must be resolved');
     return result;
   });
-  return { results: finalResults, buffer: nextBuffer, isHit: finalResults.some((result) => result.gain > 0) };
+  const isHit = finalResults.some((result) => result.gain > 0);
+  return {
+    results: finalResults,
+    buffer: nextBuffer,
+    anchored,
+    isHit,
+    isBlocked: !isHit && finalResults.some((result) => result.face.kind === 'firewall'),
+    paydays: finalResults.filter((result) => result.face.kind === 'payday').length,
+  };
 }
 
-function neediestTrack(server: Server, buffer: Buffer): number | null {
-  let best: number | null = null;
-  let bestNeed = 0;
-  server.tracks.forEach((track, index) => {
-    const need = remainingSteps(track, buffer[index]);
-    if (need > bestNeed) {
-      best = index;
-      bestNeed = need;
-    }
-  });
-  return best;
-}
+/** Faces that never download place last; any number above three colors does. */
+const NON_DATA_PLACEMENT = 99;
 
+function colorCount(face: Face): number {
+  return face.kind === 'data' ? face.colors.length : NON_DATA_PLACEMENT;
+}
