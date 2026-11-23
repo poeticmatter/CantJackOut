@@ -68,7 +68,56 @@ function noise(duration: number, volume: number, delay = 0, highpass = 1200): vo
   source.start(start);
 }
 
+/** A tone that holds its level and cuts off at the end, unlike tone()'s natural decay. */
+function heldTone(frequency: number, duration: number, volume: number, delay = 0): void {
+  const ctx = audio();
+  if (ctx === null) return;
+  const start = ctx.currentTime + delay;
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(frequency, start);
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.setValueAtTime(volume, start + duration - 0.05);
+  gain.gain.linearRampToValueAtTime(0, start + duration);
+  oscillator.connect(gain).connect(ctx.destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+const STREAK_TOP = 12;
+
 export const sfx = {
+  /** Lub-dub, louder as the trace climbs. */
+  heartbeat: (level: number) => {
+    const volume = 0.05 + level * 0.1;
+    tone({ frequency: 72, endFrequency: 44, duration: 0.14, volume });
+    tone({ frequency: 64, endFrequency: 40, duration: 0.12, volume: volume * 0.7, delay: 0.17 });
+  },
+  /** Each clean roll in a row rings a step higher. */
+  streak: (count: number) => {
+    const frequency = 520 * 2 ** (Math.min(count, STREAK_TOP) / 6);
+    tone({ frequency, duration: 0.14, type: 'triangle', volume: 0.05 });
+    tone({ frequency: frequency * 1.5, duration: 0.1, type: 'square', volume: 0.02, delay: 0.06 });
+  },
+  /** The last die hangs in the air. */
+  suspense: () => tone({ frequency: 180, endFrequency: 420, duration: 1.2, type: 'sawtooth', volume: 0.03 }),
+  /** Jacking out: the tension lets go. */
+  release: () => {
+    tone({ frequency: 330, endFrequency: 165, duration: 0.7, volume: 0.06 });
+    tone({ frequency: 494, endFrequency: 247, duration: 0.8, type: 'triangle', volume: 0.03, delay: 0.05 });
+  },
+  secure: (index: number) => tone({ frequency: 900 + Math.min(index, 20) * 45, duration: 0.05, type: 'square', volume: 0.022 }),
+  crtOff: () => {
+    tone({ frequency: 1500, endFrequency: 50, duration: 0.45, volume: 0.06 });
+    noise(0.25, 0.08, 0, 2000);
+  },
+  ecgBeep: (delay: number) => tone({ frequency: 1000, duration: 0.11, type: 'square', volume: 0.035, delay }),
+  ecgFlat: (delay: number) => heldTone(1000, 1.3, 0.03, delay),
+  shatter: () => {
+    noise(0.35, 0.1, 0, 3000);
+    [1800, 2400, 3100].forEach((frequency, index) => tone({ frequency, endFrequency: frequency * 0.6, duration: 0.12, type: 'square', volume: 0.02, delay: index * 0.04 }));
+  },
   click: () => tone({ frequency: 1400, duration: 0.04, type: 'square', volume: 0.03 }),
   rattle: (diceCount: number) => {
     for (let index = 0; index < diceCount * 3; index++) noise(0.03, 0.05, index * 0.06 + Math.random() * 0.03, 2500);

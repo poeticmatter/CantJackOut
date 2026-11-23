@@ -4,9 +4,21 @@ import { prefersReducedMotion } from './dom';
  * Throwaway particles drawn in a layer over the run screen. Everything here is decoration:
  * with reduced motion (or no Web Animations support) each effect is skipped and resolves at once.
  */
+export interface Flight {
+  readonly from: Element | DOMRect;
+  readonly to: Element | DOMRect;
+  readonly color: string;
+  readonly count: number;
+  readonly delay?: number;
+}
+
 export interface FxLayer {
   readonly element: HTMLElement;
-  flyBlocks(from: Element, to: DOMRect, color: string, count: number): Promise<void>;
+  flyBlocks(flight: Flight): Promise<void>;
+  /** A bolt of light from a die to its tower; resolves as it lands. */
+  beam(from: Element, to: DOMRect, color: string): Promise<void>;
+  /** A block breaks into shards that fall away. */
+  shatter(at: DOMRect, color: string): void;
   floatText(over: Element | DOMRect, text: string, className: string): void;
   burst(at: Element | DOMRect, color: string, count: number): void;
   rain(text: string, color: string, count: number): void;
@@ -15,6 +27,9 @@ export interface FxLayer {
 const FLY_MILLISECONDS = 520;
 const FLOAT_MILLISECONDS = 1100;
 const BURST_MILLISECONDS = 800;
+const BEAM_MILLISECONDS = 260;
+const SHATTER_MILLISECONDS = 900;
+const SHARDS_PER_BLOCK = 4;
 
 function canAnimate(element: HTMLElement): boolean {
   return !prefersReducedMotion() && typeof element.animate === 'function';
@@ -46,10 +61,10 @@ export function createFxLayer(): FxLayer {
 
   return {
     element,
-    flyBlocks(from, to, color, count) {
+    flyBlocks({ from, to, color, count, delay = 0 }) {
       if (!canAnimate(element) || count === 0) return Promise.resolve();
       const start = local(centerOf(from));
-      const end = local({ x: to.left + to.width / 2, y: to.top + to.height / 2 });
+      const end = local(centerOf(to));
       const flights = Array.from({ length: count }, (_, index) => {
         const particle = spawn('fx-block', color);
         const lift = 60 + Math.random() * 80;
@@ -60,11 +75,50 @@ export function createFxLayer(): FxLayer {
             { transform: `translate(${(start.x + end.x) / 2 + spread}px, ${Math.min(start.y, end.y) - lift}px) scale(1.2) rotate(90deg)`, opacity: 1, offset: 0.45 },
             { transform: `translate(${end.x}px, ${end.y}px) scale(0.8) rotate(180deg)`, opacity: 1 },
           ],
-          { duration: FLY_MILLISECONDS, delay: index * 45, easing: 'cubic-bezier(0.3, 0.1, 0.3, 1)', fill: 'backwards' },
+          { duration: FLY_MILLISECONDS, delay: delay + index * 45, easing: 'cubic-bezier(0.3, 0.1, 0.3, 1)', fill: 'backwards' },
         );
         return animation.finished.then(() => particle.remove(), () => particle.remove());
       });
       return Promise.all(flights).then(() => undefined);
+    },
+    beam(from, to, color) {
+      if (!canAnimate(element)) return Promise.resolve();
+      const start = local(centerOf(from));
+      const end = local(centerOf(to));
+      const length = Math.hypot(end.x - start.x, end.y - start.y);
+      const angle = Math.atan2(end.y - start.y, end.x - start.x);
+      const bolt = spawn('fx-beam', color);
+      bolt.style.width = `${length}px`;
+      const placed = `translate(${start.x}px, ${start.y}px) rotate(${angle}rad)`;
+      bolt.animate(
+        [
+          { transform: `${placed} scaleX(0)`, opacity: 1 },
+          { transform: `${placed} scaleX(1)`, opacity: 1, offset: 0.55 },
+          { transform: `${placed} scaleX(1) scaleY(0.2)`, opacity: 0 },
+        ],
+        { duration: BEAM_MILLISECONDS * 1.8, easing: 'ease-out' },
+      ).finished.then(() => bolt.remove(), () => bolt.remove());
+      return new Promise((resolve) => window.setTimeout(resolve, BEAM_MILLISECONDS));
+    },
+    shatter(at, color) {
+      if (!canAnimate(element)) return;
+      const point = local(centerOf(at));
+      for (let index = 0; index < SHARDS_PER_BLOCK; index++) {
+        const shard = spawn('fx-shard', color);
+        const x = point.x + (Math.random() - 0.5) * at.width;
+        const y = point.y + (Math.random() - 0.5) * at.height;
+        const drift = (Math.random() - 0.5) * 160;
+        const fall = 180 + Math.random() * 220;
+        const spin = (Math.random() - 0.5) * 720;
+        shard.animate(
+          [
+            { transform: `translate(${x}px, ${y}px) rotate(0deg)`, opacity: 1 },
+            { transform: `translate(${x + drift * 0.3}px, ${y - 20 - Math.random() * 30}px) rotate(${spin * 0.2}deg)`, opacity: 1, offset: 0.2 },
+            { transform: `translate(${x + drift}px, ${y + fall}px) rotate(${spin}deg)`, opacity: 0 },
+          ],
+          { duration: SHATTER_MILLISECONDS * (0.8 + Math.random() * 0.4), easing: 'cubic-bezier(0.5, 0, 0.9, 0.5)' },
+        ).finished.then(() => shard.remove(), () => shard.remove());
+      }
     },
     floatText(over, text, className) {
       if (!canAnimate(element)) return;
@@ -112,6 +166,12 @@ export function createFxLayer(): FxLayer {
       }
     },
   };
+}
+
+/** A quick push of the camera toward the action. */
+export function punch(element: HTMLElement, strength: number): void {
+  if (!canAnimate(element)) return;
+  element.animate([{ scale: '1' }, { scale: String(1 + 0.012 * strength) }, { scale: '1' }], { duration: 240, easing: 'ease-out' });
 }
 
 /** A short jolt for big moments. */

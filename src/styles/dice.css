@@ -23,7 +23,7 @@
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  transition: transform 950ms cubic-bezier(0.15, 0.8, 0.25, 1);
+  transition: transform var(--roll-duration, 950ms) cubic-bezier(0.15, 0.8, 0.25, 1);
 }
 .die.no-transition {
   transition: none;
@@ -64,10 +64,10 @@
   background: radial-gradient(rgba(0, 0, 0, 0.6), transparent 70%);
 }
 .die-scene.is-tumbling .die {
-  animation: die-hop 950ms cubic-bezier(0.3, 0.7, 0.4, 1) var(--tumble-delay, 0ms) backwards;
+  animation: die-hop var(--roll-duration, 950ms) cubic-bezier(0.3, 0.7, 0.4, 1) var(--tumble-delay, 0ms) backwards;
 }
 .die-scene.is-tumbling .die-shadow {
-  animation: shadow-hop 950ms cubic-bezier(0.3, 0.7, 0.4, 1) var(--tumble-delay, 0ms) backwards;
+  animation: shadow-hop var(--roll-duration, 950ms) cubic-bezier(0.3, 0.7, 0.4, 1) var(--tumble-delay, 0ms) backwards;
 }
 .die-scene.is-hit .die-face {
   border-color: var(--die-glow);
@@ -83,6 +83,34 @@
   transform: translateX(-50%);
   background: linear-gradient(0deg, var(--die-glow), transparent);
   animation: beam-up 600ms ease-out forwards;
+}
+.die-cipher {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: 'Consolas', 'Cascadia Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: calc(var(--die-size) * 0.32);
+  color: #e8fbff;
+  text-shadow: 0 0 8px var(--blue), 2px 0 rgba(255, 61, 110, 0.8), -2px 0 rgba(63, 167, 255, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.die-cipher.is-active {
+  opacity: 0.9;
+}
+.die-scene:has(.die-cipher.is-active) .die-face {
+  filter: brightness(0.55) hue-rotate(40deg);
+}
+/* The deciding die: everything else dims while it hangs. */
+.dice-tray.is-suspense .die-scene:not(:last-child) {
+  filter: brightness(0.55);
+  transition: filter 300ms;
+}
+.dice-tray.is-suspense .die-scene:last-child {
+  filter: drop-shadow(0 0 18px rgba(255, 61, 94, 0.7));
 }
 .die-scene.is-dud {
   filter: saturate(0.25) brightness(0.6);

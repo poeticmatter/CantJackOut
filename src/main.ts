@@ -9,6 +9,7 @@ import './styles/characters.css';
 import './styles/market.css';
 import './styles/fx.css';
 import './styles/handshake.css';
+import './styles/juice.css';
 import { startApp } from './ui/app';
 import { startBackdrop } from './ui/backdrop';
 import { createStore } from './ui/store';

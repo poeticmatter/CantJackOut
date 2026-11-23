@@ -6,10 +6,13 @@ import { FILE_COLORS, type FileId, fileIndex } from '../game/files';
 import { survivalChance } from '../game/pairing';
 import { type RollChoice, type RollRecord, isJackpotRoll } from '../game/roll';
 import { canReroute, runMinutes, streamContext } from '../game/run';
+import { createRunAtmosphere } from './atmosphere';
 import { sfx } from './audio';
-import { type DieView, createDieView } from './dice3d';
-import { el, wait } from './dom';
-import { createFxLayer, shake } from './fx';
+import { streamSecuredBlocks } from './bankStream';
+import { type DieView, ROLL_MILLISECONDS, createDieView } from './dice3d';
+import { el, prefersReducedMotion, wait } from './dom';
+import { playFlatline } from './flatline';
+import { createFxLayer, punch, shake } from './fx';
 import { playHandshake } from './handshake';
 import { renderRunConsole } from './runConsole';
 import { type RunFrame, autoResolveMiss, filesFor, frameFor } from './runFrame';
@@ -17,12 +20,24 @@ import { choiceKeyAction } from './runKeys';
 import { renderRunResult } from './runResult';
 import { renderJackpotPicker, renderSplitPicker } from './splitPicker';
 import type { Store } from './store';
+import { traceLevel } from './tension';
 import { renderAlertMeter, renderTower } from './towers';
 
-const BIG_ROLL_BLOCKS = 3;
 const PARTICLES_PER_DIE = 4;
+/** More blocks fly when more was riding on the roll. */
+const TRACE_EXTRA_PARTICLES = 5;
 const JACKPOT_PARTICLES_PER_DIE = 10;
 const JACKPOT_FLASH_MILLISECONDS = 1100;
+/** Shake from blocks gained and from what was at stake; below this a hit only punches the camera. */
+const SHAKE_PER_BLOCK = 0.35;
+const SHAKE_PER_TRACE = 1.4;
+const SHAKE_FROM = 1;
+const MAX_SHAKE = 2.8;
+/** With this much trace the last die hangs in the air before it lands. */
+const SUSPENSE_TRACE = 0.35;
+const SUSPENSE_EXTRA_MILLISECONDS = 900;
+const STREAK_SHOWN_FROM = 2;
+const RELEASE_MILLISECONDS = 900;
 
 export interface RunScreen {
   readonly element: HTMLElement;
@@ -57,9 +72,12 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   const resultSlot = el('div', { className: 'run-result-slot' });
   const stage = el('div', { className: 'run-stage' }, [towers, consoleSlot]);
   const fx = createFxLayer();
+  const streakBadge = el('div', { className: 'streak', attrs: { 'aria-hidden': 'true' } });
   const element = el('section', { className: 'run-screen', attrs: { 'aria-label': 'Run in progress' } }, [
     header, stage, tray, resultSlot, fx.element,
   ]);
+  const atmosphere = createRunAtmosphere(element);
+  element.prepend(...atmosphere.layers);
 
   let diceViews: DieView[] = [];
   let displayedFaces: readonly number[] | null = null;
@@ -72,6 +90,8 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   let hasPendingUpdate = false;
   let playedReport: RunReport | null = null;
   let latestState = store.current();
+  /** Clean rolls in a row this run. */
+  let streak = 0;
 
   const act = (transition: (state: CampaignState) => CampaignState, sound: () => void = sfx.click) => {
     if (isAnimating) return;
@@ -92,7 +112,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
 
   const buildDice = (frame: RunFrame) => {
     diceViews = frame.dice.map(createDieView);
-    tray.replaceChildren(...diceViews.map((view) => view.element));
+    tray.replaceChildren(streakBadge, ...diceViews.map((view) => view.element));
     diceViews.forEach((view) => view.showFace(Math.floor(Math.random() * FACES_PER_DIE)));
   };
 
@@ -114,6 +134,41 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     const lastRoll = frame.run.lastRoll;
     const isPickingJackpot = frame.report === null && frame.run.status === 'choosing' && lastRoll !== null && isJackpotRoll(lastRoll);
     markTowers('is-jackpot-target', isPickingJackpot ? lastRoll.jackpotFiles : null);
+    drawStreams(frame);
+  };
+
+  /** A data line from every open stream down to the dice. */
+  const drawStreams = (frame: RunFrame) => {
+    const files = filesFor(frame);
+    const links = frame.report !== null ? [] : frame.server.files.flatMap((file, index) => {
+      const tower = towers.children[index];
+      if (files[index].stream !== 'stream' || tower === undefined) return [];
+      const [first, second] = FILE_COLORS[file.id];
+      return [{ tower, colors: [colorVar(first), colorVar(second)] as const }];
+    });
+    atmosphere.drawStreams(links, tray);
+  };
+
+  const traceFor = (frame: RunFrame): number => {
+    if (frame.report !== null) return 0;
+    if (frame.run.status === 'missed') return 1;
+    return traceLevel({
+      blocksAtRisk: frame.run.buffer.reduce((sum, blocks) => sum + blocks, 0),
+      safeChance: survivalChance(frame.dice, streamContext(frame.run, frame.server)),
+      alert: frame.server.alert,
+      alertLimit: frame.server.alertLimit,
+    });
+  };
+
+  const showStreak = () => {
+    streakBadge.textContent = `×${streak}`;
+    streakBadge.classList.toggle('is-visible', streak >= STREAK_SHOWN_FROM);
+    streakBadge.classList.remove('is-popping');
+    void streakBadge.offsetWidth;
+    if (streak >= STREAK_SHOWN_FROM) {
+      streakBadge.classList.add('is-popping');
+      sfx.streak(streak);
+    }
   };
 
   const renderHeader = (frame: RunFrame) => {
@@ -178,6 +233,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     resultSlot.replaceChildren(frame.report !== null ? renderRunResult(frame.report, latestState, onLeave) : '');
     element.classList.toggle('has-result', frame.report !== null);
     element.classList.toggle('is-threatened', frame.run.status === 'missed');
+    if (frame.report === null) atmosphere.setTrace(traceFor(frame));
   };
 
   /** The cell a flying block should land on: the first empty block of that file's tower. */
@@ -197,6 +253,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
   const celebrateGains = (frame: RunFrame, before: readonly number[]) => {
     renderTowers(frame);
     const gained = displayedFilled.map((filled, index) => filled - (before[index] ?? filled));
+    const totalGained = gained.reduce((sum, blocks) => sum + Math.max(0, blocks), 0);
     gained.forEach((blocks, index) => {
       const tower = towers.children[index];
       if (blocks <= 0 || tower === undefined) return;
@@ -209,7 +266,12 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
         sfx.fileCracked(FILE_COLORS[file.id][1]);
       }
     });
-    if (gained.reduce((sum, blocks) => sum + Math.max(0, blocks), 0) >= BIG_ROLL_BLOCKS) shake(stage, 1.6);
+    if (totalGained === 0) return;
+    punch(stage, Math.min(3, totalGained));
+    const jolt = totalGained * SHAKE_PER_BLOCK + atmosphere.trace * SHAKE_PER_TRACE;
+    if (jolt >= SHAKE_FROM) shake(stage, Math.min(MAX_SHAKE, jolt));
+    streak++;
+    showStreak();
   };
 
   /** Four of a kind: the dice flare, the screen flashes and the banner drops in. */
@@ -228,22 +290,44 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     element.classList.remove('is-jackpot-roll');
   };
 
+  /** With enough at stake, the last die hangs in the air while the others wait. */
+  const rollDice = async (rollRecord: RollRecord) => {
+    const isDecisive = atmosphere.trace >= SUSPENSE_TRACE && diceViews.length > 1 && !prefersReducedMotion();
+    const lastIndex = diceViews.length - 1;
+    let isSettled = false;
+    if (isDecisive) {
+      window.setTimeout(() => {
+        if (isSettled) return;
+        tray.classList.add('is-suspense');
+        sfx.suspense();
+      }, ROLL_MILLISECONDS);
+    }
+    await Promise.all(rollRecord.faceIndexes.map((faceIndex, index) => {
+      const duration = isDecisive && index === lastIndex ? ROLL_MILLISECONDS + SUSPENSE_EXTRA_MILLISECONDS : ROLL_MILLISECONDS;
+      return diceViews[index]?.rollTo(faceIndex, duration) ?? Promise.resolve();
+    }));
+    isSettled = true;
+    tray.classList.remove('is-suspense');
+  };
+
   const animateRoll = async (frame: RunFrame, rollRecord: RollRecord) => {
     sfx.rattle(diceViews.length);
     diceViews.forEach((view) => view.setMood('idle'));
-    await Promise.all(rollRecord.faceIndexes.map((faceIndex, index) => diceViews[index]?.rollTo(faceIndex) ?? Promise.resolve()));
+    await rollDice(rollRecord);
     if (isJackpotRoll(rollRecord)) {
       await celebrateJackpot(rollRecord);
     } else if (frame.run.status === 'missed' || (frame.report !== null && rollRecord.chosen === null)) {
       diceViews.forEach((view) => view.setMood('dud'));
       sfx.probeMiss();
+      streak = 0;
+      showStreak();
     }
   };
 
   /** Blocks fly from each die that scored, in that die's own color, to its file's tower. */
   const animateChoice = async (frame: RunFrame, rollRecord: RollRecord, choice: RollChoice) => {
     const before = [...displayedFilled];
-    const particles = choice.kind === 'jackpot' ? JACKPOT_PARTICLES_PER_DIE : PARTICLES_PER_DIE;
+    const particles = (choice.kind === 'jackpot' ? JACKPOT_PARTICLES_PER_DIE : PARTICLES_PER_DIE) + Math.round(atmosphere.trace * TRACE_EXTRA_PARTICLES);
     const flights = diceFlights(rollRecord, choice).flatMap(({ dice, file }, pairIndex) => {
       const views = dice.map((dieIndex) => diceViews[dieIndex]);
       if (file === null) {
@@ -256,20 +340,36 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
         const view = diceViews[dieIndex];
         const color = colorVar(rollRecord.colors[dieIndex]);
         view?.setMood('hit', color);
-        return landing === null || view === undefined ? Promise.resolve() : fx.flyBlocks(view.element, landing, color, particles);
+        if (landing === null || view === undefined) return Promise.resolve();
+        return fx.beam(view.element, landing, color).then(() => fx.flyBlocks({ from: view.element, to: landing, color, count: particles }));
       });
     });
     await Promise.all(flights);
     celebrateGains(frame, before);
   };
 
+  /** Jacking out lets the tension go: the red drains away and the held blocks stream into safety. */
+  const release = async () => {
+    sfx.release();
+    atmosphere.setTrace(0);
+    element.classList.add('is-releasing');
+    window.setTimeout(() => element.classList.remove('is-releasing'), RELEASE_MILLISECONDS);
+    await streamSecuredBlocks(element, towers, fx);
+  };
+
+  /** Getting caught keeps the red up through the death scene, then clears it. */
+  const flatline = async () => {
+    atmosphere.setTrace(0);
+    element.style.setProperty('--trace', '1');
+    await playFlatline(element, fx);
+    element.style.setProperty('--trace', '0');
+  };
+
   const playEnding = async (report: RunReport) => {
-    if (report.ending === 'flatlined') {
-      sfx.flatline();
-      element.classList.add('is-glitching');
-      await wait(700);
-      element.classList.remove('is-glitching');
-    } else if (report.payout > 0) {
+    atmosphere.drawStreams([], tray);
+    const isCaught = report.ending === 'flatlined';
+    await (isCaught ? flatline() : release());
+    if (!isCaught && report.payout > 0) {
       sfx.download();
       element.classList.add('is-downloaded', 'is-jackpot');
       report.filesSold.forEach((file) => {
@@ -279,7 +379,7 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
       fx.rain('$', 'var(--amber)', 12 + 12 * report.filesSold.length);
       shake(element, 2.4);
       await wait(900);
-    } else {
+    } else if (!isCaught) {
       sfx.bank();
     }
     if (report.isPurged) {
@@ -298,6 +398,9 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     towers.replaceChildren();
     resultSlot.replaceChildren();
     element.classList.remove('is-downloaded', 'is-jackpot', 'has-result');
+    streak = 0;
+    showStreak();
+    atmosphere.begin(frame.server.modifiers);
     sfx.jackIn();
   };
 
@@ -396,6 +499,10 @@ export function createRunScreen(store: Store, onLeave: () => void): RunScreen {
     }
   };
   window.addEventListener('keydown', handleKey);
+  window.addEventListener('resize', () => {
+    const frame = frameFor(latestState);
+    if (element.isConnected && frame !== null && !isAnimating) drawStreams(frame);
+  });
 
   return {
     element,

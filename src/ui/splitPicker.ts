@@ -3,6 +3,7 @@ import { type SplitOption, type StreamContext, newStreams } from '../game/pairin
 import type { RollRecord } from '../game/roll';
 import { el } from './dom';
 import { COLOR_LABEL, fileGlyph, fileLabel, fileToneClass, pairGlyph } from './faceStyle';
+import { withTilt } from './tilt';
 
 export const SPLIT_KEYS = ['1', '2', '3'] as const;
 /** Keys for the two ways to take a split whose pairs can't both open a stream. */
@@ -81,7 +82,7 @@ function renderPairs(roll: RollRecord, option: SplitOption): HTMLElement {
 function renderSingleChoice(props: SplitPickerProps, option: SplitOption, splitIndex: number): HTMLElement {
   const files = option.choices[0];
   const note = idlePairNote(props, option);
-  return el('button', {
+  return withTilt(el('button', {
     className: 'split-card',
     attrs: { type: 'button', 'aria-label': `Split ${splitIndex + 1}: ${files.map(fileLabel).join(' and ')}` },
     onClick: () => props.onChoose(splitIndex, 0),
@@ -91,7 +92,7 @@ function renderSingleChoice(props: SplitPickerProps, option: SplitOption, splitI
     renderPairs(props.roll, option),
     renderEffects(files, props.context),
     note === null ? null : el('small', { className: 'split-note', text: note }),
-  ]);
+  ]));
 }
 
 function renderTwoChoices(props: SplitPickerProps, option: SplitOption, splitIndex: number): HTMLElement {
@@ -101,12 +102,12 @@ function renderTwoChoices(props: SplitPickerProps, option: SplitOption, splitInd
     renderPairs(props.roll, option),
     el('small', { className: 'split-note', text: 'Only one stream is free: pick one pair.' }),
     el('div', { className: 'split-forks' }, option.choices.map((files, choiceIndex) => withPreview(props, files,
-      el('button', {
+      withTilt(el('button', {
         className: 'split-fork',
         attrs: { type: 'button', 'aria-label': `Split ${splitIndex + 1}, ${fileLabel(files[0])} only` },
         onClick: () => props.onChoose(splitIndex, choiceIndex),
         isDisabled: props.isLocked,
-      }, [isPending ? el('kbd', { className: 'split-key', text: CHOICE_KEYS[choiceIndex] }) : null, renderEffects(files, props.context)])))),
+      }, [isPending ? el('kbd', { className: 'split-key', text: CHOICE_KEYS[choiceIndex] }) : null, renderEffects(files, props.context)]))))),
   ]);
 }
 

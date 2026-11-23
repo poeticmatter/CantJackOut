@@ -124,6 +124,17 @@ Pick a server and roll. Every die matching an unfinished file downloads a block;
 
 ## Game development
 
+### 2026-11-23: The run builds tension
+The owner asked for a more visually impressive run with a lot more juice. The run already reacted to single events; now it builds as you push your luck, and the server feels like a place.
+- **Trace:** the more blocks you have at risk, the likelier the next roll is to miss, and the hotter the server's alert, the higher the trace. As it climbs, red closes in from the edges and starts to flicker, a heartbeat thumps faster under the run, the data falling through the server speeds up and turns red, and the camera leans in. Jacking out lets it all go with a green wash and a calm tone. The trace is presentation only; the rules never read it.
+- **Inside the server:** the run plays over a grid floor running to a glowing horizon, with data falling through the dark and a scan beam sweeping the towers. Black ICE grows a red hex lattice in from the edges; a Tracer sweeps a searchlight across the room, both stronger as the trace rises. Every open stream has a live two-color data line from its tower down to the dice.
+- **Rolls:** glyphs scramble over the dice as they tumble, as if being decrypted. With enough at stake, the last die hangs in the air while the others wait and the tray dims around it.
+- **Hits:** each scoring die fires a beam at its tower before its blocks fly, the camera punches in, and shake and particles grow with how much was riding on the roll. Clean rolls in a row count up as a streak by the dice, each a step higher in pitch.
+- **Jacking out:** every block you were holding streams up into a Secured counter that ticks up as they land.
+- **Flatline:** the held blocks shatter and fall, the screen tears with color fringing, the picture collapses like an old CRT switching off, and an ECG beats twice and goes flat under FLATLINE.
+- **Split cards** lean toward the pointer, catch a sheen of light, and press in when clicked.
+- With reduced motion, all of it stays still.
+
 ### 2026-11-23: Vesna and Moth as noir silhouettes
 From playtest round 2: the owner found Vesna's point-cloud face and Moth's emblem unpolished, and asked that Vesna not be based on their portrait at all. Of three directions mocked up (calling-card emblems, noir silhouettes and voice-only voiceprints), the owner picked the silhouettes, without the cigarette Vesna had in the mockup.
 - **Vesna:** a silhouette in profile behind venetian blinds, lit cyan from the window, with an angled bob and a cybernetic eye. The eye flickers while she talks, and the picture glitches when you come up short.

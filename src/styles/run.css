@@ -160,10 +160,10 @@
 }
 
 /* Run endings ---------------------------------------------------------------------- */
-.run-screen.is-glitching {
+.run-screen.is-flatlining {
   animation: glitch-shake 700ms steps(2, end);
 }
-.run-screen.is-glitching::after {
+.run-screen.is-flatlining::after {
   content: '';
   position: absolute;
   inset: 0;

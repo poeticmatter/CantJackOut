@@ -1,0 +1,353 @@
+/* The run's atmosphere and its big moments. The run screen carries --trace, from 0 (calm) to 1 (caught). */
+
+/* Layers behind and over the content ----------------------------------------------- */
+.run-screen > .cyberspace,
+.run-screen > .stream-lines,
+.run-screen > .trace-vignette {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.run-screen > .cyberspace,
+.run-screen > .stream-lines {
+  z-index: 0;
+}
+.run-screen > .stream-lines {
+  overflow: visible;
+}
+
+/* The trace: red closing in from the edges, flickering once it's hot. */
+.run-screen > .trace-vignette {
+  z-index: 5;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(255, 36, 80, 0.55) 100%),
+    linear-gradient(0deg, rgba(255, 36, 80, 0.2), transparent 22%);
+  opacity: calc(var(--trace, 0) * 1.1);
+  transition: opacity 900ms ease;
+}
+.run-screen.is-hot > .trace-vignette {
+  animation: vignette-flicker 1.7s steps(1, end) infinite;
+}
+.run-screen.is-releasing > .trace-vignette {
+  background: radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(57, 240, 160, 0.4) 100%);
+  transition: none;
+  animation: release-wash 900ms ease-out forwards;
+}
+
+/* The camera leans in as the trace climbs. */
+.run-screen .towers,
+.run-screen .dice-tray {
+  scale: calc(1 + var(--trace, 0) * 0.03);
+  transition: scale 1.2s ease;
+}
+
+/* A scan beam sweeps the towers now and then. */
+.towers {
+  position: relative;
+}
+.towers::after {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(110, 214, 255, 0.1) 40%, rgba(225, 250, 255, 0.24) 50%, rgba(110, 214, 255, 0.1) 60%, transparent);
+  background-size: 28% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  animation: scan-sweep 7s ease-in-out infinite;
+}
+
+/* Stream lines: two strands per file, data pulsing up into the tower. */
+.stream-glow {
+  fill: none;
+  stroke: var(--strand-color);
+  stroke-width: 7;
+  opacity: 0.16;
+  filter: blur(3px);
+}
+.stream-strand {
+  fill: none;
+  stroke: var(--strand-color);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 3 9;
+  opacity: 0.85;
+  animation: stream-flow calc(0.9s - var(--trace, 0) * 0.5s) linear infinite;
+}
+
+/* Dice tray: the streak counter ------------------------------------------------------ */
+.streak {
+  position: absolute;
+  top: 10px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step-3);
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 18px rgba(255, 182, 72, 0.7);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 200ms, transform 200ms;
+  pointer-events: none;
+}
+.streak::after {
+  content: 'streak';
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-shadow: none;
+}
+.streak.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.streak.is-popping {
+  animation: streak-pop 460ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+/* Hits: a beam from the die, then blocks ------------------------------------------- */
+.fx-beam,
+.fx-shard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+}
+.fx-beam {
+  height: 4px;
+  margin-top: -2px;
+  transform-origin: 0 50%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ffffff, var(--fx-color));
+  box-shadow: 0 0 14px var(--fx-color), 0 0 4px #ffffff;
+}
+.fx-shard {
+  width: 8px;
+  height: 10px;
+  margin: -5px 0 0 -4px;
+  background: var(--fx-color);
+  clip-path: polygon(0 0, 100% 30%, 60% 100%);
+}
+
+/* Jacking out: blocks stream into a Secured counter ------------------------------------ */
+.secured {
+  position: absolute;
+  top: calc(var(--gutter) + 4px);
+  left: 50%;
+  z-index: 7;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 20px;
+  font-family: var(--font-display);
+  background: rgba(8, 30, 24, 0.88);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  box-shadow: 0 0 30px rgba(57, 240, 160, 0.35);
+  pointer-events: none;
+  animation: secured-in 260ms ease-out;
+}
+.secured span {
+  font-size: var(--step--1);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+.secured strong {
+  font-size: var(--step-4);
+  line-height: 1;
+  color: #eafff5;
+  text-shadow: 0 0 18px var(--green);
+}
+.secured.is-bumped strong {
+  animation: secured-bump 180ms ease-out;
+}
+.secured.is-leaving {
+  animation: secured-out 500ms ease-in forwards;
+}
+
+/* Flatline: tear, shatter, CRT off, ECG -------------------------------------------- */
+.run-screen.is-flatlining {
+  filter: drop-shadow(5px 0 rgba(255, 30, 90, 0.75)) drop-shadow(-5px 0 rgba(40, 200, 255, 0.75));
+}
+.cell.is-shattered {
+  visibility: hidden;
+}
+.crt {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.crt::before,
+.crt::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #020106;
+  animation: crt-close 320ms cubic-bezier(0.7, 0, 1, 0.5) forwards;
+}
+.crt::before {
+  top: 0;
+  transform-origin: top;
+}
+.crt::after {
+  bottom: 0;
+  transform-origin: bottom;
+}
+.crt-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  z-index: 1;
+  height: 3px;
+  margin-top: -1.5px;
+  background: #ffffff;
+  box-shadow: 0 0 22px 6px rgba(200, 240, 255, 0.8);
+  opacity: 0;
+  animation: crt-line 520ms ease-in forwards;
+}
+.crt.is-on {
+  animation: crt-on 260ms ease-out forwards;
+}
+.flatline-ecg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(560px, 82%);
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+.flatline-ecg svg {
+  width: 100%;
+  height: 110px;
+  overflow: visible;
+}
+.flatline-ecg polyline {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px var(--danger));
+  animation: ecg-draw 1050ms linear forwards;
+}
+.flatline-stamp {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step-5);
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--danger);
+  text-shadow: -3px 0 rgba(63, 167, 255, 0.8), 3px 0 rgba(255, 61, 110, 0.8), 0 0 30px rgba(255, 61, 94, 0.6);
+  opacity: 0;
+  animation: stamp-in 320ms 700ms cubic-bezier(0.2, 1.5, 0.4, 1) forwards;
+}
+
+/* Split cards lean toward the pointer --------------------------------------------- */
+.has-tilt {
+  position: relative;
+  transform: perspective(700px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+  transition: transform 160ms ease-out, translate 160ms ease-out, scale 90ms ease-out, box-shadow 160ms, border-color 160ms;
+}
+.has-tilt:hover:not(:disabled) {
+  translate: 0 -2px;
+}
+.has-tilt:active:not(:disabled) {
+  scale: 0.97;
+}
+.has-tilt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--sheen-x, 50%) 0%, rgba(255, 255, 255, 0.16), transparent 62%);
+  opacity: 0;
+  transition: opacity 160ms;
+}
+.has-tilt:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+@keyframes vignette-flicker {
+  0%, 100% { filter: none; }
+  12% { filter: brightness(1.7); }
+  14% { filter: none; }
+  58% { filter: brightness(1.4) hue-rotate(-12deg); }
+  61% { filter: none; }
+}
+@keyframes release-wash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes scan-sweep {
+  0% { background-position: -40% 0; }
+  40%, 100% { background-position: 140% 0; }
+}
+@keyframes stream-flow {
+  to { stroke-dashoffset: 12; }
+}
+@keyframes streak-pop {
+  from { transform: scale(1.9) rotate(-8deg); }
+  to { transform: scale(1); }
+}
+@keyframes secured-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.8); }
+}
+@keyframes secured-bump {
+  50% { transform: scale(1.25); }
+}
+@keyframes secured-out {
+  to { opacity: 0; transform: translateY(-16px); }
+}
+@keyframes crt-close {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes crt-line {
+  0% { opacity: 0; transform: scaleY(40); }
+  40% { opacity: 1; transform: scaleY(1); }
+  85% { opacity: 1; transform: scaleX(0.008); }
+  100% { opacity: 0; transform: scaleX(0); }
+}
+@keyframes crt-on {
+  from { opacity: 1; filter: brightness(3); }
+  to { opacity: 0; }
+}
+@keyframes ecg-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes stamp-in {
+  from { opacity: 0; transform: scale(2.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-screen .towers,
+  .run-screen .dice-tray {
+    scale: none;
+  }
+  .has-tilt {
+    transform: none;
+  }
+  .towers::after {
+    display: none;
+  }
+}

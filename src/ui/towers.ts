@@ -64,6 +64,13 @@ export function renderTower(state: TowerState): HTMLElement {
   ]);
 }
 
+/** A tower cell's color for effects that leave the tower: alternating between the file's two colors. */
+export function cellTone(cell: Element, index: number): string {
+  const tower = cell.closest('.tower');
+  if (tower === null) return 'var(--danger)';
+  return getComputedStyle(tower).getPropertyValue(index % 2 === 0 ? '--tone-a' : '--tone-b').trim() || 'var(--danger)';
+}
+
 /** Compact horizontal version for server cards on the net view. */
 export function renderFileBar(file: ServerFile): HTMLElement {
   const fill = (file.banked / file.length) * 100;
